@@ -81,8 +81,8 @@ pico_unlock(1234567)
 	fastboot reboot bootloader. you should be back at the fastboot menu and it should show "unlocked"
 
 [7]
-	now try a normal boot and it will ask you to factory reset. once you do that, your bootloader will be umlocked
-	amd you'll be able to boot normally again.
+	now try a normal boot and it will ask you to factory reset. once you do that, your bootloader will be unlocked
+	and you'll be able to boot normally again.
 
 [8]
 	enjoy!
