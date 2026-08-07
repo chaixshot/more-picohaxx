@@ -79,6 +79,7 @@ pico_unlock(1234567)
 		(bootloader) Device critical unlocked: true
 [6]
 	fastboot reboot bootloader. you should be back at the fastboot menu and it should show "unlocked"
+    If it doesn't, repeat the same process again. It seems that unlocking may require a few bootloader reboots and repeating the commands before it takes effect.
 
 [7]
 	now try a normal boot and it will ask you to factory reset. once you do that, your bootloader will be unlocked
