@@ -86,6 +86,9 @@ pico_unlock(1234567)
 	and you'll be able to boot normally again.
 
 [8]
+    !!! It is highly recommended to flash back the original abl from your firmware, especially on Pico 4 !!!
+	
+[9]
 	enjoy!
 	Big thx to Fallen Angel for his fearless testing.
 	[typlo]
