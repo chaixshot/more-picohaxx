@@ -31,10 +31,10 @@ pico_unlock(1234567)
 	The whole mechanism is as simple as it is effective and the crypto is sound.
 	However Pico was so nice and (as of this writing still) provides a complete engineering firmware that includes a signed firehose
 	right on their download server. With this you can downgrade your abl to a very early Pico 3 version, that only uses a simple serial
-	number, derived from the unique qchip_id to gate the unlock commands! This lets you issue "critical_unlock", but it will not stick
-	and your device returns to the locked state after reboot. To get this to work i had to inject a custom key into the devinfo partition, 
-	but to be honest i'm not quite sure why this makes it work. Maybe someone else can explain it? Now if you issue the unlock commands, the 
-	unlock bits are actually written to the protected RPMB storage, and even the original Pico 4 abl will honor them without any token. 
+	number, derived from the unique qchip_id to gate the unlock commands! This lets you issue "critical_unlock", but it usually wont stick on the first try.
+	I'm not sure if this is just a bug in the abl, but if your device returns to the locked state after reboot, just issue the commands again. At some point it 
+	is known to work.
+	Now the unlock bits are actually written to the protected RPMB storage, and even the original Pico 4 abl will honor them without any token. 
 	You will loose the unlocked fastboot access if you go back to the original abl though. As a nice side effect you will also get selinux 
 	permissive at boot, so i just stayed with the Pico 3 abl.
 
@@ -79,7 +79,7 @@ pico_unlock(1234567)
 		(bootloader) Device critical unlocked: true
 [6]
 	fastboot reboot bootloader. you should be back at the fastboot menu and it should show "unlocked"
-    If it doesn't, repeat the same process again. It seems that unlocking may require a few bootloader reboots and repeating the commands before it takes effect.
+    If it doesn't, repeat the same process again. Unlocking may require a few bootloader reboots and repeating the commands before it takes effect.
 
 [7]
 	now try a normal boot and it will ask you to factory reset. once you do that, your bootloader will be unlocked
