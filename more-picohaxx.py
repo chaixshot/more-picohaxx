@@ -62,7 +62,7 @@ pico_unlock(1234567)
 	in case they no longer host it, it should be easy enough to find on the internet.
 
 [4]
-	boot into edl then flash abl and the devinfo provided in this repo. backup your old abl!
+	boot into edl and flash abl. backup your old abl!
 	i used https://github.com/bkerler/edl
 
 [5]
