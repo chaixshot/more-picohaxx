@@ -110,6 +110,7 @@ function Invoke-PicoHaxxScript {
 }
 
 function Generate-UnlockCode {
+   Clear-Host
    Write-Host "--- Generating Unlock Code ---"
    Write-Host "Please connect your Pico device via USB and ensure USB debugging is enabled."
    Read-Host "Press Enter to continue..."
@@ -126,6 +127,7 @@ function Generate-UnlockCode {
 }
 
 function Flash-EngineeringAbl {
+   Clear-Host
    Write-Host "--- Flashing Engineering ABL via EDL ---"
    Write-Warning "This step will reboot your device into EDL (Emergency Download) mode to flash a new bootloader."
    Write-Warning "This is a critical part of the unlock process."
@@ -166,12 +168,9 @@ function Flash-EngineeringAbl {
       return
    }
 
-   # Find the next available backup folder index
-   $index = 1
-   while (Test-Path (Join-Path $AblBackupPath $index)) {
-      $index++
-   }
-   $currentBackupPath = Join-Path $AblBackupPath $index
+   # Create a timestamped backup folder
+   $folderName = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+   $currentBackupPath = Join-Path $AblBackupPath $folderName
    New-Item -Path $currentBackupPath -ItemType Directory | Out-Null
    $backupFile = Join-Path $currentBackupPath "abl.bin"
 
@@ -181,11 +180,12 @@ function Flash-EngineeringAbl {
       Write-Error "The combined backup and flash operation failed. Your device may be in an unusable state. Check if a backup was created at '$backupFile' and attempt a manual restore if necessary."
       return
    }
-   Write-Host "Original abl backed up to '$backupFile' (in folder '$index')." -ForegroundColor Green
+   Write-Host "Original abl backed up to '$backupFile' (in folder '$folderName')." -ForegroundColor Green
    Write-Host "Engineering abl flashed successfully in the same operation." -ForegroundColor Green
 }
 
 function Perform-FastbootUnlock {
+   Clear-Host
    Write-Host "--- Performing Unlock Bootloader ---"
    Write-Host "The device may not boot normally now. Please manually boot it into Fastboot mode."
    Write-Host " (Typically: Hold Vol Down + Power from a powered-off state)"
@@ -240,20 +240,58 @@ function Get-LatestBackupPath {
          Write-Error "The specified backup directory '$AblBackupPath' does not exist."
          return $null
       }
-      $highestFolder = Get-ChildItem -Path $AblBackupPath -Directory |
-         Where-Object { $_.Name -match '^\d+$' } |
-         Sort-Object { [int]$_.Name } -Descending |
-         Select-Object -First 1
-      if ($highestFolder) {
-         return Join-Path -Path $highestFolder.FullName -ChildPath $FileName
-      } else {
-         Write-Error "No numeric backup folders found in '$AblBackupPath'."
+      $folders = Get-ChildItem -Path $AblBackupPath -Directory |
+         Where-Object { $_.Name -match '^\d+$|^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$' } |
+         Sort-Object -Property LastWriteTime -Descending
+
+      if (-not $folders) {
+         Write-Error "No valid backup folders found in '$AblBackupPath'."
          return $null
       }
+
+      if ($folders.Count -gt 1) {
+         $selectedFolder = $null
+         while (-not $selectedFolder) {
+            Write-Host "`nAvailable backup folders:" -ForegroundColor Cyan
+            for ($i = 0; $i -lt $folders.Count; $i++) {
+               Write-Host "[$i] $($folders[$i].Name)"
+            }
+            $selection = Read-Host "`nSelect a backup folder (enter index or folder name, default [0] for latest, 'c' to cancel)"
+
+            if ([string]::IsNullOrWhiteSpace($selection)) {
+               $selection = "0"
+            }
+
+            if ($selection -eq 'c') {
+               Write-Host "Operation cancelled."
+               return $null
+            }
+
+            # Check if it matches a folder name directly
+            $selectedFolder = $folders | Where-Object { $_.Name -eq $selection } | Select-Object -First 1
+
+            # If not, check if it's an index
+            if (-not $selectedFolder -and $selection -match '^\d+$') {
+               $index = [int]$selection
+               if ($index -ge 0 -and $index -lt $folders.Count) {
+                  $selectedFolder = $folders[$index]
+               }
+            }
+
+            if (-not $selectedFolder) {
+               Clear-Host
+               Write-Warning "Invalid selection '$selection'. Please try again or type 'c' to cancel."
+            }
+         }
+         return Join-Path -Path $selectedFolder.FullName -ChildPath $FileName
+      }
+
+      return Join-Path -Path $folders[0].FullName -ChildPath $FileName
    }
 }
 
 function Restore-OriginalAbl {
+   Clear-Host
    Write-Host "--- Restoring Original ABL via EDL ---"
    Write-Host "This fix resolves issues like slow reboots and unwanted booting into EDL mode."
    Write-Host "SELinux will return to Enforcing mode, using https://github.com/evdenis/selinux_permissive to change back to Permissive mode"
@@ -297,6 +335,7 @@ function Restore-OriginalAbl {
 }
 
 function Perform-FastbootLock {
+   Clear-Host
    Write-Host "--- Performing Lock Bootloader ---"
    Write-Host "The device may not boot normally now. Please manually boot it into Fastboot mode."
    Write-Host " (Typically: Hold Vol Down + Power from a powered-off state)"
