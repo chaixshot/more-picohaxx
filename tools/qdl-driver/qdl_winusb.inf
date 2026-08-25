@@ -1,0 +1,48 @@
+; qdl_winusb.inf - WinUSB for Qualcomm HS-USB QDLoader 9008 (PICO EDL mode)
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = USBDevice
+ClassGuid   = {88BAE032-5A81-49f0-BC3D-A4FF138216D6}
+Provider    = %ManufacturerName%
+CatalogFile = qdl_winusb.cat
+DriverVer   = 01/01/2024,1.0.0.0
+PnpLockdown = 1
+
+[Manufacturer]
+%ManufacturerName% = Standard,NTamd64
+
+[Standard.NTamd64]
+%Dev9008% = USB_Install,      USB\VID_05C6&PID_9008
+%Dev4E11% = Fastboot_Install, USB\VID_18D1&PID_4E11
+%DevD00D% = Fastboot_Install, USB\VID_18D1&PID_D00D
+
+; qdl (libusb): plain WinUSB is enough.
+[USB_Install]
+Include = winusb.inf
+Needs   = WINUSB.NT
+
+[USB_Install.Services]
+Include = winusb.inf
+Needs   = WINUSB.NT.Services
+
+; fastboot (AdbWinApi): WinUSB PLUS the Android device-interface GUID, which is
+; how adb/fastboot discover the device. Same as Google's android_winusb.inf.
+[Fastboot_Install]
+Include = winusb.inf
+Needs   = WINUSB.NT
+
+[Fastboot_Install.Services]
+Include = winusb.inf
+Needs   = WINUSB.NT.Services
+
+[Fastboot_Install.HW]
+AddReg = Fastboot_AddReg
+
+[Fastboot_AddReg]
+HKR,,DeviceInterfaceGUIDs,0x10000,"{F72FE0D4-CBCB-407d-8814-9ED673D0DD6B}"
+
+[Strings]
+ManufacturerName = "PicoUnlock"
+Dev9008 = "Qualcomm HS-USB QDLoader 9008 (WinUSB)"
+Dev4E11 = "PICO fastbootd (WinUSB)"
+DevD00D = "Android Bootloader / fastboot (WinUSB)"

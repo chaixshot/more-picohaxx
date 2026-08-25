@@ -1,2 +1,2 @@
 # Unlock your Pico 3/4 bootloader
-<img width="540" height="960" alt="unlocked" src="https://github.com/user-attachments/assets/d5623589-3c06-4a3d-9895-aa990130556e" />
+<img width="540" height="960" alt="unlocked" src="./src/unlocked.jpg" />
