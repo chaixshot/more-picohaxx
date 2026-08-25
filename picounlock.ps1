@@ -106,6 +106,15 @@ function Invoke-PicoHaxxScript {
    Write-Host "Generated Unlock Command: $unlockCommand" -ForegroundColor Green
    Write-Host ""
 
+   # Create unlock command file
+   $instructions = @"
+$unlockCommand
+fastboot oem setenforce 0
+fastboot flashing unlock
+fastboot flashing unlock_critical
+"@
+   $instructions | Set-Content "./picounlock.txt"
+
    return $unlockCommand
 }
 
