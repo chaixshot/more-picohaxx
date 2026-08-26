@@ -30,8 +30,11 @@ $DRIVER = ".\tools\qdl-driver"
 $Magisk = ".\tools\Magisk4Pico.apk"
 $Picounlock = ".\picounlock.txt"
 
-$FirehosePath = ".\tools\firehoses\prog_firehose_ddr.elf"
+$FirehoseDDR4Path = ".\tools\firehoses\prog_firehose_ddr.elf"
+$FirehoseDDR5Path = ".\tools\firehoses\prog_firehose_lite.elf"
+$FirehoseTargetPath = $null
 $AblPath = ".\tools\engineering\abl.elf"
+$DevInfoPath = ".\tools\engineering\devinfo"
 $AblBackupPath = ".\device-backup"
 
 $QDL = ".\tools\qdl.exe"
@@ -159,6 +162,26 @@ function Wait-AdbMode ([int]$Timeout = 100) {
    return $deviceDetected
 }
 
+function Select-Firehose {
+   if ($null -eq $script:FirehoseTargetPath) {
+      Write-Host "`n"
+      Write-Log "Select your device model to use the correct firehose:" "Info"
+      Write-Host " ${cCyan}[1]${cReset} Pico 4 / Pico Neo 3 (DDR 4)"
+      Write-Host " ${cCyan}[2]${cReset} Pico 4 Pro (DDR 5)"
+
+      $fhChoice = Read-Host "`nSelect an option"
+
+      if ($fhChoice -eq "2") {
+         $script:FirehoseTargetPath = $FirehoseDDR5Path
+         Write-Log "Using Lite Firehose for Pico 4 Pro." "Info"
+      }
+      else {
+         $script:FirehoseTargetPath = $FirehoseDDR4Path
+         Write-Log "Using standard DDR Firehose." "Info"
+      }
+   }
+}
+
 function Check-Prerequisites {
    Write-Header "Running Prerequisite Checks"
    if (-not (Test-Path $ADB) -and -not (Test-CommandExists "adb")) {
@@ -185,8 +208,12 @@ function Check-Prerequisites {
       Write-Log "'${cYellow}$AblPath${cReset}' not found. Please download it and place it correctly." "Error"
       return
    }
-   if (-not (Test-Path $FirehosePath)) {
-      Write-Log "'${cYellow}$FirehosePath${cReset}' not found. Please download it and place it correctly." "Error"
+   if (-not (Test-Path $FirehoseDDR4Path)) {
+      Write-Log "'${cYellow}$FirehoseDDR4Path${cReset}' not found. Please download it and place it correctly." "Error"
+      return
+   }
+   if (-not (Test-Path $FirehoseDDR5Path)) {
+      Write-Log "'${cYellow}$FirehoseDDR5Path${cReset}' not found. Please download it and place it correctly." "Error"
       return
    }
    Write-Log "All prerequisites found." "Success"
@@ -278,10 +305,11 @@ function Generate-UnlockCode {
 
 function Flash-EngineeringAbl {
    Clear-Host
-   Write-Header "Flashing Engineering ABL via EDL"
-   Write-Log "This step will reboot your device into ${cCyan}EDL (Emergency Download)${cReset} mode to flash a new bootloader." "Warning"
+   Write-Header "Flashing Engineering ABL & Devinfo via EDL"
+   Write-Log "This step will reboot your device into ${cCyan}EDL (Emergency Download)${cReset} mode to flash engineering files." "Warning"
    Write-Log "This is a critical part of the unlock process." "Warning"
-   Write-Host "To proceed with rebooting to EDL, type " -NoNewline
+
+   Write-Host "`nTo proceed with rebooting to EDL, type " -NoNewline
    Write-Host "'YES'" -ForegroundColor Yellow -NoNewline
    Write-Host " and press Enter: " -NoNewline
    $rebootConfirmation = Read-Host
@@ -289,6 +317,8 @@ function Flash-EngineeringAbl {
       Write-Log "Reboot to EDL aborted by user. No changes have been made." "Warning"
       return
    }
+
+   Select-Firehose
 
    # Create backup directory if it doesn't exist
    if (-not (Test-Path $AblBackupPath)) {
@@ -315,16 +345,17 @@ function Flash-EngineeringAbl {
    $folderName = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
    $currentBackupPath = Join-Path $AblBackupPath $folderName
    New-Item -Path $currentBackupPath -ItemType Directory | Out-Null
-   $backupFile = Join-Path $currentBackupPath "abl.bin"
+   $backupAbl = Join-Path $currentBackupPath "abl.bin"
+   $backupDevInfo = Join-Path $currentBackupPath "devinfo.bin"
 
-   Write-Log "Backing up original ${cYellow}abl${cReset} and flashing ${cYellow}engineering abl${cReset} in a single operation..." "Action"
-   & $QDL --storage ufs --include (Split-Path $FirehosePath -Parent) $FirehosePath read abl $backupFile write abl $AblPath
+   Write-Log "Backing up original partitions and flashing engineering files in a single operation..." "Action"
+   & $QDL --storage ufs --include (Split-Path $FirehoseTargetPath -Parent) $FirehoseTargetPath read abl $backupAbl read devinfo $backupDevInfo write abl $AblPath write devinfo $DevInfoPath
    if ($LASTEXITCODE -ne 0) {
-      Write-Log "The combined backup and flash operation failed. Your device may be in an unusable state. Check if a backup was created at '${cYellow}$backupFile${cReset}' and attempt a manual restore if necessary." "Error"
+      Write-Log "The combined backup and flash operation failed. Your device may be in an unusable state. Check if backups were created in '${cYellow}$currentBackupPath${cReset}' and attempt a manual restore if necessary." "Error"
       return
    }
-   Write-Log "Original abl backed up to ${cGreen}'$backupFile'${cReset} (in folder '${cCyan}$folderName${cReset}')." "Success"
-   Write-Log "Engineering abl flashed successfully in the same operation." "Success"
+   Write-Log "Original partitions backed up to ${cGreen}'$currentBackupPath'${cReset}." "Success"
+   Write-Log "Engineering ABL and Devinfo flashed successfully." "Success"
 }
 
 function Perform-FastbootUnlock {
@@ -485,15 +516,19 @@ function Get-LatestBackupPath {
 
 function Restore-OriginalAbl {
    Clear-Host
-   Write-Header "Restoring Original ABL via EDL"
+   Write-Header "Restoring Original Partitions via EDL"
    Write-Log "This fix resolves issues like slow reboots and unwanted booting into ${cCyan}EDL${cReset} mode." "Info"
-   Write-Log "SELinux will return to ${cYellow}Enforcing${cReset} mode, using ${cCyan}https://github.com/evdenis/selinux_permissive${cReset} to change back to Permissive mode" "Info"
+   Write-Log "SELinux will return to ${cYellow}Enforcing${cReset} mode, using ${cCyan}https://github.com/evdenis/selinux_permissive${cReset} to
+change back to Permissive mode" "Info"
    Write-Log "Perform ${cYellow}rooting${cReset} (${cCyan}Option 4${cReset}) before doing this step!" "Warning"
-   $backupPath = Get-LatestBackupPath
-   if (-not $backupPath) { return }
 
-   Write-Log "Target backup file: ${cGreen}$backupPath${cReset}" "Info"
-   Write-Host "Are you sure you want to flash this backup? (Type " -NoNewline
+   $backupFolder = Get-LatestBackupPath -FileName ""
+   if (-not $backupFolder) { return }
+   $backupAbl = Join-Path $backupFolder "abl.bin"
+   $backupDevInfo = Join-Path $backupFolder "devinfo.bin"
+
+   Write-Log "Target backup folder: ${cGreen}$backupFolder${cReset}" "Info"
+   Write-Host "`nAre you sure you want to flash this backup? (Type " -NoNewline
    Write-Host "'YES'" -ForegroundColor Yellow -NoNewline
    Write-Host "): " -NoNewline
    $confirmation = Read-Host
@@ -502,18 +537,20 @@ function Restore-OriginalAbl {
       return
    }
 
+   Select-Firehose
+
    if (IsAdbMode) {
       Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Info"
       & $ADB reboot edl
    }
 
    if (Wait-EdlMode 100) {
-      & $QDL --storage ufs --include (Split-Path $FirehosePath -Parent) $FirehosePath write abl $backupPath
+      & $QDL --storage ufs --include (Split-Path $FirehoseTargetPath -Parent) $FirehoseTargetPath write abl $backupAbl write devinfo $backupDevInfo
       if ($LASTEXITCODE -eq 0) {
-         Write-Log "Backup restored successfully!" "Success"
+         Write-Log "Original partitions restored successfully!" "Success"
       }
       else {
-         Write-Log "Failed to restore backup." "Error"
+         Write-Log "Failed to restore backup partitions." "Error"
       }
    }
    else {
@@ -971,7 +1008,7 @@ try {
       Write-Host "5" -NoNewline -ForegroundColor Cyan
       Write-Host "] " -NoNewline -ForegroundColor DarkGray
       Write-Host "Flash backup ABL " -NoNewline
-      Write-Host "(Fix slow reboot, fix boot into EDL)" -ForegroundColor DarkGray
+      Write-Host "(Fix slow boot, fix boot into EDL)" -ForegroundColor DarkGray
 
       Write-Host " [" -NoNewline -ForegroundColor DarkGray
       Write-Host "6" -NoNewline -ForegroundColor Cyan
