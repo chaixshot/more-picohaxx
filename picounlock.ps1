@@ -2,14 +2,16 @@
 
 <#
 .SYNOPSIS
-    Automates the bootloader unlock process for Pico 4 devices.
+    Automates the bootloader unlock and root process for Pico 4 devices.
 .DESCRIPTION
-    This script follows the steps outlined in more-picohaxx.py to unlock the bootloader.
+    This script follows the steps outlined in more-picohaxx.py to unlock the bootloader and root the device.
     It handles getting the serial number, generating the unlock code, downloading necessary files,
-    and executing the required edl and fastboot commands.
+    executing required edl, fastboot, and Magisk rooting operations.
 
     WARNING:
     - Unlocking the bootloader will wipe your data partition. BACKUP YOUR DATA.
+    - Rooting may void your warranty.
+    - Incorrect flashing can brick your device.
     - This is a complex process. Proceed only if you are familiar with adb, edl, and fastboot.
     - The script authors and I are not responsible for any damage to your device.
 
@@ -19,11 +21,14 @@
     - qdl.exe (from https://github.com/linux-msm/qdl) must be in the script's directory.
     - python must be installed and in your PATH.
     - The 'more-picohaxx.py' script must be in the same directory.
+    - Magisk4Pico.apk must be in the .\tools directory for rooting.
 #>
 
 # --- Script Configuration ---
 $PicoHaxxPyScript = ".\more-picohaxx.py"
 $DRIVER = ".\tools\qdl-driver"
+$Magisk = ".\tools\Magisk4Pico.apk"
+$Picounlock = ".\picounlock.txt"
 
 $FirehosePath = ".\tools\firehoses\prog_firehose_ddr.elf"
 $AblPath = ".\tools\engineering\abl.elf"
@@ -32,6 +37,8 @@ $AblBackupPath = ".\device-backup"
 $QDL = ".\tools\qdl.exe"
 $ADB = ".\tools\adb.exe"
 $FASTBOOT = ".\tools\fastboot.exe"
+
+$script:PatchedImagePath = $null
 
 # --- ANSI Color Codes for Highlights ---
 $e = [char]27
@@ -136,6 +143,22 @@ function Wait-EdlMode ([int]$Timeout = 100) {
    return $deviceDetected
 }
 
+function Wait-AdbMode ([int]$Timeout = 100) {
+   Write-Log "Waiting for device to connect in ${cCyan}ADB${cReset} mode..." "Info"
+   $deviceDetected = $false
+   foreach ($i in 1..$Timeout) {
+      if (IsAdbMode) {
+         Write-Host "`rADB device detected.                                      " -ForegroundColor Green
+         $deviceDetected = $true
+         break
+      }
+      Write-Host "`r  ...waiting for device to boot ($i/$Timeout) " -NoNewline
+      Start-Sleep -Seconds 1
+   }
+   Write-Host ""
+   return $deviceDetected
+}
+
 function Check-Prerequisites {
    Write-Header "Running Prerequisite Checks"
    if (-not (Test-Path $ADB) -and -not (Test-CommandExists "adb")) {
@@ -170,8 +193,8 @@ function Check-Prerequisites {
    Write-Host ""
 
    # Check for EDL driver and offer to install it
-   $driverInf = "qdl_winusb.inf"
-   $driverInstalled = (pnputil /enum-drivers) -join "`n" | Select-String -Pattern $driverInf -Quiet
+   $driverPattern = "qdl_winusb\.inf|qcser\.inf"
+   $driverInstalled = (pnputil /enum-drivers) -join "`n" | Select-String -Pattern $driverPattern -Quiet
    if (-not $driverInstalled) {
       Write-Log "The WinUSB driver for ${cCyan}EDL mode (Qualcomm 9008)${cReset} does not appear to be installed." "Warning"
       Write-Log "This is required for flashing the ${cYellow}bootloader${cReset}." "Info"
@@ -193,7 +216,7 @@ function Check-Prerequisites {
          Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$installScript`"" -Verb RunAs -Wait
 
          Write-Log "Driver installation process finished. Re-checking for driver..." "Info"
-         if (-not ((pnputil /enum-drivers) -join "`n" | Select-String -Pattern $driverInf -Quiet)) {
+         if (-not ((pnputil /enum-drivers) -join "`n" | Select-String -Pattern $driverPattern -Quiet)) {
             Write-Log "Driver still not found. Please run '${cYellow}$installScript${cReset}' manually as ${cCyan}Administrator${cReset} and then re-run this script." "Error"
             return
          }
@@ -235,9 +258,16 @@ function Generate-UnlockCode {
    Clear-Host
    Write-Header "Generating Unlock Code"
 
+   if (-not (IsAdbMode)) {
+      Write-Log "Device not detected in ${cCyan}ADB${cReset} mode. Please connect your device and enable ${cYellow}USB debugging${cReset}." "Error"
+      Wait-Continue
+      return
+   }
+
    $serialNumber = (& $ADB shell "cat /sys/devices/soc0/serial_number").Trim()
    if (-not ($serialNumber -match "^\d+$")) {
       Write-Log "Failed to get a valid serial number from the device. Is it connected and authorized?" "Error"
+      Wait-Continue
       return
    }
    Write-Log "Device serial number: ${cGreen}$serialNumber${cReset}" "Success"
@@ -270,9 +300,14 @@ function Flash-EngineeringAbl {
       Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Info"
       & $ADB reboot edl
    }
+   elseif (-not (IsEdlMode)) {
+      Write-Log "Device not detected in ${cCyan}ADB${cReset} mode. Please connect your device and enable ${cYellow}USB debugging${cReset}." "Error"
+      Write-Log "Please ensure drivers are installed (run ${cYellow}qdl-driver\install.ps1${cReset} as Admin)." "Error"
+      Write-Log "Manually boot to EDL (Hold ${cYellow}Vol Up + Vol Down + Power${cReset} from off state), then re-run this script." "Error"
+   }
 
    if (-not (Wait-EdlMode 100)) {
-      Write-Log "Device not detected in ${cCyan}EDL${cReset} mode. Please ensure drivers are installed (run ${cYellow}qdl-driver\install.ps1${cReset} as Admin) and manually boot to EDL (Hold ${cYellow}Vol Up + Vol Down + Power${cReset} from off state), then re-run this script." "Error"
+      Write-Log "Device not detected in ${cCyan}EDL${cReset} mode." "Error"
       return
    }
 
@@ -300,18 +335,15 @@ function Perform-FastbootUnlock {
       Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}bootloader${cReset} mode..." "Info"
       & $ADB reboot bootloader
    }
-   elseif (IsFastbootMode) {
-      Write-Log "Device detected in ${cCyan}Fastboot${cReset} mode." "Info"
-   }
-   else {
-      Write-Log "The device may not boot normally now. Please manually boot it into ${cCyan}Fastboot${cReset} mode." "Warning"
+   elseif (-not (IsFastbootMode)) {
+      Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode. Please ensure it's connected and in bootloader mode." "Error"
       Write-Host " (Typically: Hold " -NoNewline
       Write-Host "Vol Down + Power" -ForegroundColor Yellow -NoNewline
       Write-Host " from a powered-off state)"
    }
 
    if (-not (Wait-FastbootMode 100)) {
-      Write-Log "Device not detected in ${cCyan}fastboot${cReset} mode. Please ensure it's connected and in bootloader mode, then re-run this script." "Error"
+      Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Error"
       return
    }
 
@@ -332,6 +364,8 @@ function Perform-FastbootUnlock {
    }
    
    Wait-Continue
+   Verify-Unlock
+   Show-UnlockFinalInstructions
 }
 
 function Verify-Unlock {
@@ -341,7 +375,7 @@ function Verify-Unlock {
    & $FASTBOOT reboot bootloader
 
    if (-not (Wait-FastbootMode 100)) {
-      Write-Log "Device not detected in ${cCyan}fastboot${cReset} mode." "Error"
+      Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Error"
       return
    }
 
@@ -366,8 +400,8 @@ function Show-UnlockFinalInstructions {
    Clear-Host
    Write-Header "Finalizing"
    Write-Log "!!! CRITICAL NEXT STEP !!!" "Warning"
-   Write-Log "It is highly recommended to flash back your original bootloader (${cYellow}abl${cReset}) from your backup folder." "Warning"
-   Write-Log "You can do this using ${cCyan}Option 3${cReset} in the main menu." "Info"
+   Write-Log "It is highly recommended to root your device (${cCyan}Option 4${cReset}) before flashing back your original bootloader (${cYellow}abl${cReset}) from your backup folder (${cCyan}Option 5${cReset})." "Warning"
+   Write-Log "You can flash back your original abl using ${cCyan}Option 5${cReset} in the main menu." "Info"
    Write-Host ""
    Write-Log "After rebooting, you will likely be prompted to perform a ${cYellow}factory reset${cReset}. This is expected." "Info"
    Write-Log "After the factory reset, your device will boot normally." "Info"
@@ -377,7 +411,7 @@ function Show-UnlockFinalInstructions {
       & $FASTBOOT reboot
    }
    else {
-      Write-Log "Device not detected in ${cCyan}fastboot${cReset} mode. Please reboot manually." "Error"
+      Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode. Please reboot manually." "Error"
    }
 }
 
@@ -454,7 +488,7 @@ function Restore-OriginalAbl {
    Write-Header "Restoring Original ABL via EDL"
    Write-Log "This fix resolves issues like slow reboots and unwanted booting into ${cCyan}EDL${cReset} mode." "Info"
    Write-Log "SELinux will return to ${cYellow}Enforcing${cReset} mode, using ${cCyan}https://github.com/evdenis/selinux_permissive${cReset} to change back to Permissive mode" "Info"
-   Write-Log "Perform ${cYellow}rooting${cReset} (${cCyan}root.ps1${cReset}) before doing this step!" "Warning"
+   Write-Log "Perform ${cYellow}rooting${cReset} (${cCyan}Option 4${cReset}) before doing this step!" "Warning"
    $backupPath = Get-LatestBackupPath
    if (-not $backupPath) { return }
 
@@ -495,18 +529,15 @@ function Perform-FastbootLock {
       Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}bootloader${cReset} mode..." "Info"
       & $ADB reboot bootloader
    }
-   elseif (IsFastbootMode) {
-      Write-Log "Device detected in ${cCyan}Fastboot${cReset} mode." "Info"
-   }
-   else {
-      Write-Log "The device may not boot normally now. Please manually boot it into ${cCyan}Fastboot${cReset} mode." "Warning"
+   elseif (-not (IsFastbootMode)) {
+      Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode. Please ensure it's connected and in bootloader mode." "Error"
       Write-Host " (Typically: Hold " -NoNewline
       Write-Host "Vol Down + Power" -ForegroundColor Yellow -NoNewline
       Write-Host " from a powered-off state)"
    }
 
    if (-not (Wait-FastbootMode 100)) {
-      Write-Log "Device not detected in ${cCyan}fastboot${cReset} mode. Please ensure it's connected and in bootloader mode, then re-run this script." "Error"
+      Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Error"
       return
    }
 
@@ -538,6 +569,8 @@ function Perform-FastbootLock {
    }
 
    Wait-Continue
+   Verify-Lock
+   Show-LockFinalInstructions
 }
 
 function Verify-Lock {
@@ -547,7 +580,7 @@ function Verify-Lock {
    & $FASTBOOT reboot bootloader
 
    if (-not (Wait-FastbootMode 100)) {
-      Write-Log "Device not detected in ${cCyan}fastboot${cReset} mode." "Error"
+      Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Error"
       return
    }
 
@@ -580,10 +613,325 @@ function Show-LockFinalInstructions {
       & $FASTBOOT reboot
    }
    else {
-      Write-Log "Device not detected in ${cCyan}fastboot${cReset} mode. Please reboot manually." "Error"
+      Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode. Please reboot manually." "Error"
    }
 }
 
+# --- Root Functions ---
+
+function Prepare-Magisk {
+   Clear-Host
+   Write-Header "Preparing Magisk"
+
+   if (IsFastbootMode) {
+      Write-Log "Device detected in ${cCyan}Fastboot${cReset} mode." "Warning"
+      Write-Host "Would you like to reboot the device to system? (" -NoNewline
+      Write-Host "y" -ForegroundColor Cyan -NoNewline
+      Write-Host "/n): " -NoNewline
+      $rebootChoice = Read-Host
+      if ($rebootChoice -eq 'y') {
+         Write-Log "Rebooting device to ${cCyan}system${cReset}..." "Action"
+         & $FASTBOOT reboot
+         if (-not (Wait-AdbMode 100)) {
+            Write-Log "Device did not connect in ${cCyan}ADB${cReset} mode. Please ensure it has fully booted and ${cYellow}USB debugging${cReset} is enabled." "Error"
+            return
+         }
+      }
+      else {
+         Write-Log "Operation cancelled. Device must be in ${cCyan}ADB${cReset} mode to prepare Magisk." "Warning"
+         return
+      }
+   }
+
+   if (-not (IsAdbMode)) {
+      Write-Log "Device not detected in ${cCyan}ADB${cReset} mode. Please connect your device and enable ${cYellow}USB debugging${cReset}." "Error"
+      return
+   }
+
+   Write-Log "Installing ${cYellow}Magisk APK${cReset}..." "Info"
+   if (Test-Path $Magisk) {
+      & $ADB install $Magisk
+      if ($LASTEXITCODE -eq 0) {
+         Write-Log "${cGreen}Magisk${cReset} installed successfully." "Success"
+      }
+      else {
+         Write-Log "Failed to install ${cYellow}Magisk${cReset}." "Error"
+      }
+   }
+   else {
+      Write-Log "Magisk APK not found at ${cYellow}$Magisk${cReset}" "Error"
+   }
+
+   Write-Log "Important Step: You need to download the correct firmware for your device to get the ${cYellow}'boot.img'${cReset}." "Warning"
+   Write-Log "Please download it from here: ${cCyan}https://owomushi.com/Pico-4-Archive/${cReset}" "Info"
+
+   Write-Host "`nWould you like to open this URL in your browser? (" -NoNewline
+   Write-Host "y" -ForegroundColor Cyan -NoNewline
+   Write-Host "/n): " -NoNewline
+   $openUrl = Read-Host
+   if ($openUrl -eq 'y') {
+      Start-Process "https://owomushi.com/Pico-4-Archive/"
+   }
+
+   Write-Log "Step 2: Extract ${cYellow}'boot.img'${cReset}" "Action"
+   Write-Log "Once the firmware is downloaded, extract ${cYellow}'boot.img'${cReset} from the ZIP file." "Info"
+
+   $bootImgPath = ""
+   while ($true) {
+      Write-Host "`nEnter the full path to your extracted " -NoNewline
+      Write-Host "'boot.img'" -ForegroundColor Yellow -NoNewline
+      Write-Host " (e.g., C:\Downloads\boot.img): " -NoNewline
+      $bootImgPath = Read-Host
+      $bootImgPath = $bootImgPath.Trim('"').Trim()
+
+      if ($bootImgPath -ne "" -and (Test-Path $bootImgPath -PathType Leaf)) {
+         break
+      }
+
+      Write-Log "File not found at '${cYellow}$bootImgPath${cReset}'. Please ensure the path is correct and try again." "Warning"
+   }
+
+   Write-Log "Pushing ${cYellow}'boot.img'${cReset} to device..." "Action"
+   & $ADB push $bootImgPath /sdcard/Download/
+   if ($LASTEXITCODE -eq 0) {
+      Write-Log "Success! ${cYellow}'boot.img'${cReset} is now on your device in the ${cCyan}'Download'${cReset} folder." "Success"
+      Write-Host "`nActions on Device:" -ForegroundColor Cyan
+      Write-Host " 1. Open the " -NoNewline; Write-Host "Magisk" -ForegroundColor Yellow -NoNewline; Write-Host " app on your Pico."
+      Write-Host " 2. Tap " -NoNewline; Write-Host "'Install'" -ForegroundColor Yellow -NoNewline; Write-Host " on the home page."
+      Write-Host " 3. Choose " -NoNewline; Write-Host "'Select and Patch a File'" -ForegroundColor Yellow -NoNewline; Write-Host "."
+      Write-Host " 4. Navigate to " -NoNewline; Write-Host "'Download'" -ForegroundColor Yellow -NoNewline; Write-Host " and select the " -NoNewline; Write-Host "'boot.img'" -ForegroundColor Yellow -NoNewline; Write-Host " you just pushed."
+      Write-Host " 5. Press " -NoNewline; Write-Host "'LET'S GO'" -ForegroundColor Yellow -NoNewline; Write-Host "."
+      Write-Host " 6. Wait for the process to finish."
+
+      Write-Host "`nOnce Magisk says " -NoNewline
+      Write-Host "'All done!'" -ForegroundColor Green -NoNewline
+      Write-Host ", " -NoNewline
+      Wait-Continue "pull the patched image back to your computer..."
+
+      $localDir = Split-Path $bootImgPath -Parent
+      Write-Log "Searching for patched image on device (${cCyan}/sdcard/Download/magisk_patched*.img${cReset})..." "Info"
+
+      # Try to find the specific filename created by Magisk (handles both _ and - separators)
+      $remoteFiles = & $ADB shell "ls /sdcard/Download/magisk_patched*.img" 2>$null
+      if ($LASTEXITCODE -eq 0 -and $remoteFiles) {
+         # Handle potential multiple files by taking the latest/first
+         $remoteFile = $remoteFiles.Trim().Split("`n")[0].Trim()
+         Write-Log "Found patched file: ${cCyan}$remoteFile${cReset}" "Success"
+
+         & $ADB pull $remoteFile $localDir
+         if ($LASTEXITCODE -eq 0) {
+            $patchedLocalPath = Join-Path $localDir (Split-Path $remoteFile -Leaf)
+            $script:PatchedImagePath = $patchedLocalPath
+            Write-Log "Patched image pulled successfully to: ${cGreen}$patchedLocalPath${cReset}" "Success"
+            Write-Log "You are now ready to flash this image in ${cCyan}fastboot${cReset} mode." "Info"
+         }
+         else {
+            Write-Log "Failed to pull the patched image from the device." "Error"
+         }
+      }
+      else {
+         Write-Log "Could not find a file matching ${cYellow}'magisk_patched.img'${cReset} in ${cCyan}/sdcard/Download/${cReset}." "Warning"
+         Write-Log "Please check the Magisk app for errors." "Warning"
+      }
+   }
+   else {
+      Write-Log "Failed to push ${cYellow}'boot.img'${cReset} to the device." "Error"
+   }
+}
+
+function Flash-Magisk {
+   Clear-Host
+   Write-Header "Flashing Magisk"
+   Write-Log "This step will reboot your device into ${cCyan}bootloader${cReset} mode to flash the patched boot image." "Warning"
+   Write-Host "To proceed with rebooting to bootloader, type " -NoNewline
+   Write-Host "'YES'" -ForegroundColor Yellow -NoNewline
+   Write-Host " and press Enter: " -NoNewline
+   $confirmation = Read-Host
+   if ($confirmation -ne 'YES') {
+      Write-Log "Reboot to bootloader aborted by user. No changes have been made." "Warning"
+      return
+   }
+
+   if (IsAdbMode) {
+      Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}bootloader${cReset} mode..." "Info"
+      & $ADB reboot bootloader
+   }
+   elseif (-not (IsFastbootMode)) {
+      Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode. Please ensure it's connected and in bootloader mode." "Error"
+      Write-Host " (Typically: Hold " -NoNewline
+      Write-Host "Vol Down + Power" -ForegroundColor Yellow -NoNewline
+      Write-Host " from a powered-off state)"
+   }
+
+   if (-not (Wait-FastbootMode 100)) {
+      Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Error"
+      return
+   }
+
+   # Read unlock command from picounlock.txt
+   if (Test-Path $Picounlock) {
+      $unlockCmd = Get-Content $Picounlock | Select-Object -First 1
+      if ($unlockCmd -match "fastboot oem pico") {
+         Write-Log "Running unlock command: ${cCyan}$unlockCmd${cReset}" "Action"
+         # Use the local fastboot path with the call operator (&)
+         $cmdToRun = "& " + ($unlockCmd -replace 'fastboot', "`"$FASTBOOT`"")
+         Invoke-Expression $cmdToRun
+         if ($LASTEXITCODE -eq 0) {
+            Write-Log "Unlock command executed successfully." "Success"
+         }
+         else {
+            Write-Log "Failed to execute unlock command." "Error"
+            Write-Log "Please make sure ${cYellow}picounlock${cReset} is successful." "Error"
+            Write-Log "And do not flash ${cYellow}backup ABL${cReset} yet!" "Error"
+            return
+         }
+      }
+      else {
+         Write-Log "First line of ${cYellow}$Picounlock${cReset} does not look like an unlock command." "Warning"
+         Write-Log "Please make sure ${cYellow}picounlock${cReset} is successful" "Warning"
+         return
+      }
+   }
+   else {
+      Write-Log "${cYellow}$Picounlock${cReset} not found." "Warning"
+      Write-Log "Please make sure ${cYellow}picounlock${cReset} is successful" "Warning"
+      return
+   }
+
+   # Find patched image
+   $patchedImage = $null
+
+   if ($script:PatchedImagePath -and (Test-Path $script:PatchedImagePath)) {
+      $patchedImage = Get-Item $script:PatchedImagePath
+      Write-Log "Found patched image from last adb pull: ${cGreen}$($patchedImage.FullName)${cReset}" "Success"
+   }
+   else {
+      Write-Log "Searching for patched image locally..." "Info"
+      $patchedImage = Get-ChildItem -Path "." -Filter "magisk_patched*.img" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+   }
+
+   if (-not $patchedImage) {
+      Write-Log "Could not find any ${cYellow}'magisk_patched.img'${cReset} file automatically." "Warning"
+      $patchedImageInput = ""
+      while ($true) {
+         Write-Host "`nEnter the full path to your " -NoNewline
+         Write-Host "'magisk_patched.img'" -ForegroundColor Yellow -NoNewline
+         Write-Host " (e.g., C:\Downloads\magisk_patched-30700_0lM5L.img): " -NoNewline
+         $patchedImageInput = Read-Host
+         $patchedImageInput = $patchedImageInput.Trim('"').Trim()
+
+         if ($patchedImageInput -ne "" -and (Test-Path $patchedImageInput -PathType Leaf)) {
+            $patchedImage = Get-Item $patchedImageInput
+            break
+         }
+
+         Write-Log "File not found at '${cYellow}$patchedImageInput${cReset}'. Please ensure the path is correct and try again." "Warning"
+      }
+   }
+
+   if ($patchedImage) {
+      $script:PatchedImagePath = $patchedImage.FullName
+   }
+
+   if ($patchedImage) {
+      Write-Log "Flashing patched boot image: ${cCyan}$($patchedImage.FullName)${cReset}" "Action"
+      & $FASTBOOT flash boot $patchedImage.FullName
+      if ($LASTEXITCODE -eq 0) {
+         Write-Log "Flash successful!" "Success"
+         Write-Log "Rebooting device to ${cCyan}system${cReset}..." "Info"
+         & $FASTBOOT reboot
+      }
+      else {
+         Write-Log "Failed to flash boot image." "Error"
+      }
+   }
+   else {
+      Write-Log "No patched image found or selected. Aborting flash." "Error"
+   }
+}
+
+function Reboot-System {
+   Clear-Host
+   Write-Header "Rebooting to System"
+
+   if (IsFastbootMode) {
+      Write-Log "Device detected in ${cCyan}Fastboot${cReset} mode. Rebooting to ${cCyan}system${cReset}..." "Action"
+      & $FASTBOOT reboot
+      if ($LASTEXITCODE -eq 0) {
+         Write-Log "Reboot command sent successfully." "Success"
+      }
+      else {
+         Write-Log "Failed to execute fastboot reboot." "Error"
+      }
+   }
+   elseif (IsAdbMode) {
+      Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Rebooting to ${cCyan}system${cReset}..." "Action"
+      & $ADB reboot
+      if ($LASTEXITCODE -eq 0) {
+         Write-Log "Reboot command sent successfully." "Success"
+      }
+      else {
+         Write-Log "Failed to execute adb reboot." "Error"
+      }
+   }
+   else {
+      Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} or ${cCyan}ADB${cReset} mode. Please connect your device and ensure it is powered on." "Warning"
+   }
+}
+
+function Show-RootMenu {
+   $rootQuit = $false
+   while (-not $rootQuit) {
+      Clear-Host
+      Write-Header "Pico Root Menu"
+      Write-Host " [" -NoNewline -ForegroundColor DarkGray
+      Write-Host "1" -NoNewline -ForegroundColor Cyan
+      Write-Host "] " -NoNewline -ForegroundColor DarkGray
+      Write-Host "Prepare Magisk " -NoNewline
+      Write-Host "(Install APK & Firmware link)" -ForegroundColor DarkGray
+
+      Write-Host " [" -NoNewline -ForegroundColor DarkGray
+      Write-Host "2" -NoNewline -ForegroundColor Cyan
+      Write-Host "] " -NoNewline -ForegroundColor DarkGray
+      Write-Host "Flash Magisk " -NoNewline
+      Write-Host "(Fastboot)" -ForegroundColor DarkGray
+
+      Write-Host ""
+
+      Write-Host " [" -NoNewline -ForegroundColor DarkGray
+      Write-Host "r" -NoNewline -ForegroundColor Cyan
+      Write-Host "] " -NoNewline -ForegroundColor DarkGray
+      Write-Host "Reboot to System"
+
+      Write-Host " [" -NoNewline -ForegroundColor DarkGray
+      Write-Host "0" -NoNewline -ForegroundColor Cyan
+      Write-Host "] " -NoNewline -ForegroundColor DarkGray
+      Write-Host "Back to Main Menu"
+
+      $choice = Read-Host "`nSelect an option"
+
+      switch ($choice) {
+         "1" {
+            Prepare-Magisk
+         }
+         "2" {
+            Flash-Magisk
+         }
+         "r" {
+            Reboot-System
+         }
+         "0" {
+            $rootQuit = $true
+         }
+         default {
+            Write-Log "Invalid option. Please try again." "Warning"
+         }
+      }
+      if (-not $rootQuit) {
+         Wait-Continue "return to the Root menu..."
+      }
+   }
+}
 
 # --- Main Script Execution ---
 
@@ -611,18 +959,31 @@ try {
       Write-Host " [" -NoNewline -ForegroundColor DarkGray
       Write-Host "3" -NoNewline -ForegroundColor Cyan
       Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Perform unlock bootloader"
+      Write-Host "Unlock bootloader"
 
       Write-Host " [" -NoNewline -ForegroundColor DarkGray
       Write-Host "4" -NoNewline -ForegroundColor Cyan
       Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Flash backup ABL " -NoNewline
-      Write-Host "- Fix slow reboot, fix boot into EDL" -ForegroundColor DarkGray
+      Write-Host "Root " -NoNewline
+      Write-Host "(Superuser)" -ForegroundColor DarkGray
 
       Write-Host " [" -NoNewline -ForegroundColor DarkGray
       Write-Host "5" -NoNewline -ForegroundColor Cyan
       Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Perform lock bootloader"
+      Write-Host "Flash backup ABL " -NoNewline
+      Write-Host "(Fix slow reboot, fix boot into EDL)" -ForegroundColor DarkGray
+
+      Write-Host " [" -NoNewline -ForegroundColor DarkGray
+      Write-Host "6" -NoNewline -ForegroundColor Cyan
+      Write-Host "] " -NoNewline -ForegroundColor DarkGray
+      Write-Host "Lock bootloader"
+
+      Write-Host ""
+
+      Write-Host " [" -NoNewline -ForegroundColor DarkGray
+      Write-Host "r" -NoNewline -ForegroundColor Cyan
+      Write-Host "] " -NoNewline -ForegroundColor DarkGray
+      Write-Host "Reboot to System"
 
       Write-Host " [" -NoNewline -ForegroundColor DarkGray
       Write-Host "0" -NoNewline -ForegroundColor Cyan
@@ -645,16 +1006,18 @@ try {
          }
          "3" {
             Perform-FastbootUnlock
-            Verify-Unlock
-            Show-UnlockFinalInstructions
          }
          "4" {
-            Restore-OriginalAbl
+            Show-RootMenu
          }
          "5" {
+            Restore-OriginalAbl
+         }
+         "6" {
             Perform-FastbootLock
-            Verify-Lock
-            Show-LockFinalInstructions
+         }
+         "r" {
+            Reboot-System
          }
          "0" {
             $quit = $true
