@@ -2,3 +2,8 @@
 /abl-backup
 /logs
 picounlock.txt
+/tools/qpst/Flash/*
+/tools/qpst/Backup-*
+/tools/qpst/TMP
+/tools/qpst/Errors/*
+tools/qpst/port_trace.txt
