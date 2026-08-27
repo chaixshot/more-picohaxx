@@ -11,16 +11,14 @@ $cWhite = "$e[97m"
 
 function Write-Log ([string]$Message, [string]$Type = "Info") {
     $Color = switch ($Type) {
-        "Success" { "Green" }
-        "Warning" { "Yellow" }
-        "Error" { "Red" }
-        "Action" { "Magenta" }
-        Default { "Gray" }
+        "Success" { $cGreen }
+        "Warning" { $cYellow }
+        "Error" { $cRed }
+        "Action" { $cMagenta }
+        Default { $cGray }
     }
     $Timestamp = Get-Date -Format "HH:mm:ss"
-    Write-Host "[$Timestamp] " -NoNewLine -ForegroundColor DarkGray
-    Write-Host "[$Type] " -NoNewLine -ForegroundColor $Color
-    Write-Host $Message
+    Write-Host "${cGray}[$Timestamp] ${Color}[$Type] ${cReset}$Message"
 }
 
 function Write-Header ([string]$Title) {
@@ -58,9 +56,7 @@ function IsFastbootMode {
 }
 
 function Wait-Continue ([string]$Action = "continue...") {
-    Write-Host "Press " -NoNewline
-    Write-Host "Enter" -ForegroundColor Cyan -NoNewline
-    Write-Host " to $Action" -NoNewline
+    Write-Host "`nPress ${cCyan}Enter${cReset} to $Action" -NoNewline
     Read-Host | Out-Null
     Write-Host ""
 }
@@ -118,8 +114,8 @@ function Select-Firehose {
     if ($null -eq $script:FirehoseTargetPath) {
         Write-Host "`n"
         Write-Log "Select your device model to use the correct firehose:" "Info"
-        Write-Host " ${cCyan}[1]${cReset} Pico 4 / Pico Neo 3 (DDR 4)"
-        Write-Host " ${cCyan}[2]${cReset} Pico 4 Pro (DDR 5)"
+        Write-Host " [${cCyan}1${cReset}] Pico 4 / Pico Neo 3 (DDR 4)"
+        Write-Host " [${cCyan}2${cReset}] Pico 4 Pro (DDR 5)"
 
         $fhChoice = Read-Host "`nSelect an option"
 

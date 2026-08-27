@@ -8,9 +8,7 @@ function Prepare-Magisk {
 
    if (IsFastbootMode) {
       Write-Log "Device detected in ${cCyan}Fastboot${cReset} mode." "Warning"
-      Write-Host "Would you like to reboot the device to system? (" -NoNewline
-      Write-Host "y" -ForegroundColor Cyan -NoNewline
-      Write-Host "/n): " -NoNewline
+      Write-Host "Would you like to reboot the device to system? (${cCyan}y${cReset}/n): " -NoNewline
       $rebootChoice = Read-Host
       if ($rebootChoice -eq 'y') {
          Write-Log "Rebooting device to ${cCyan}system${cReset}..." "Action"
@@ -48,9 +46,7 @@ function Prepare-Magisk {
    Write-Log "Important Step: You need to download the correct firmware for your device to get the ${cYellow}'boot.img'${cReset}." "Warning"
    Write-Log "Please download it from here: ${cCyan}https://owomushi.com/Pico-4-Archive/${cReset}" "Info"
 
-   Write-Host "`nWould you like to open this URL in your browser? (" -NoNewline
-   Write-Host "y" -ForegroundColor Cyan -NoNewline
-   Write-Host "/n): " -NoNewline
+   Write-Host "`nWould you like to open this URL in your browser? (${cCyan}y${cReset}/n): " -NoNewline
    $openUrl = Read-Host
    if ($openUrl -eq 'y') {
       Start-Process "https://owomushi.com/Pico-4-Archive/"
@@ -61,9 +57,7 @@ function Prepare-Magisk {
 
    $bootImgPath = ""
    while ($true) {
-      Write-Host "`nEnter the full path to your extracted " -NoNewline
-      Write-Host "'boot.img'" -ForegroundColor Yellow -NoNewline
-      Write-Host " (e.g., C:\Downloads\boot.img): " -NoNewline
+      Write-Host "`nEnter the full path to your extracted ${cYellow}'boot.img'${cReset} (e.g., C:\Downloads\boot.img): " -NoNewline
       $bootImgPath = Read-Host
       $bootImgPath = $bootImgPath.Trim('"').Trim()
 
@@ -78,17 +72,15 @@ function Prepare-Magisk {
    & $ADB push $bootImgPath /sdcard/Download/
    if ($LASTEXITCODE -eq 0) {
       Write-Log "Success! ${cYellow}'boot.img'${cReset} is now on your device in the ${cCyan}'Download'${cReset} folder." "Success"
-      Write-Host "`nActions on Device:" -ForegroundColor Cyan
-      Write-Host " 1. Open the " -NoNewline; Write-Host "Magisk" -ForegroundColor Yellow -NoNewline; Write-Host " app on your Pico."
-      Write-Host " 2. Tap " -NoNewline; Write-Host "'Install'" -ForegroundColor Yellow -NoNewline; Write-Host " on the home page."
-      Write-Host " 3. Choose " -NoNewline; Write-Host "'Select and Patch a File'" -ForegroundColor Yellow -NoNewline; Write-Host "."
-      Write-Host " 4. Navigate to " -NoNewline; Write-Host "'Download'" -ForegroundColor Yellow -NoNewline; Write-Host " and select the " -NoNewline; Write-Host "'boot.img'" -ForegroundColor Yellow -NoNewline; Write-Host " you just pushed."
-      Write-Host " 5. Press " -NoNewline; Write-Host "'LET'S GO'" -ForegroundColor Yellow -NoNewline; Write-Host "."
+      Write-Host "`n${cCyan}Actions on Device:${cReset}"
+      Write-Host " 1. Open the ${cYellow}Magisk${cReset} app on your Pico."
+      Write-Host " 2. Tap ${cYellow}'Install'${cReset} on the home page."
+      Write-Host " 3. Choose ${cYellow}'Select and Patch a File'${cReset}."
+      Write-Host " 4. Navigate to ${cYellow}'Download'${cReset} and select the ${cYellow}'boot.img'${cReset} you just pushed."
+      Write-Host " 5. Press ${cYellow}'LET'S GO'${cReset}."
       Write-Host " 6. Wait for the process to finish."
 
-      Write-Host "`nOnce Magisk says " -NoNewline
-      Write-Host "'All done!'" -ForegroundColor Green -NoNewline
-      Write-Host ", " -NoNewline
+      Write-Host "`nOnce Magisk says ${cGreen}'All done!'${cReset}, " -NoNewline
       Wait-Continue "pull the patched image back to your computer..."
 
       $localDir = Split-Path $bootImgPath -Parent
@@ -126,9 +118,7 @@ function Flash-Magisk {
    Clear-Host
    Write-Header "Flashing Magisk"
    Write-Log "This step will reboot your device into ${cCyan}bootloader${cReset} mode to flash the patched boot image." "Warning"
-   Write-Host "To proceed with rebooting to bootloader, type " -NoNewline
-   Write-Host "'YES'" -ForegroundColor Yellow -NoNewline
-   Write-Host " and press Enter: " -NoNewline
+   Write-Host "To proceed with rebooting to bootloader, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
    $confirmation = Read-Host
    if ($confirmation -ne 'YES') {
       Write-Log "Reboot to bootloader aborted by user. No changes have been made." "Warning"
@@ -141,9 +131,7 @@ function Flash-Magisk {
    }
    elseif (-not (IsFastbootMode)) {
       Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode. Please ensure it's connected and in bootloader mode." "Error"
-      Write-Host " (Typically: Hold " -NoNewline
-      Write-Host "Vol Down + Power" -ForegroundColor Yellow -NoNewline
-      Write-Host " from a powered-off state)"
+      Write-Host " (Typically: Hold ${cYellow}Vol Down + Power${cReset} from a powered-off state)"
    }
 
    if (-not (Wait-FastbootMode 100)) {
@@ -197,9 +185,7 @@ function Flash-Magisk {
       Write-Log "Could not find any ${cYellow}'magisk_patched.img'${cReset} file automatically." "Warning"
       $patchedImageInput = ""
       while ($true) {
-         Write-Host "`nEnter the full path to your " -NoNewline
-         Write-Host "'magisk_patched.img'" -ForegroundColor Yellow -NoNewline
-         Write-Host " (e.g., C:\Downloads\magisk_patched-30700_0lM5L.img): " -NoNewline
+         Write-Host "`nEnter the full path to your ${cYellow}'magisk_patched.img'${cReset} (e.g., C:\Downloads\magisk_patched-30700_0lM5L.img): " -NoNewline
          $patchedImageInput = Read-Host
          $patchedImageInput = $patchedImageInput.Trim('"').Trim()
 
@@ -238,29 +224,11 @@ function Show-RootMenu {
    while (-not $rootQuit) {
       Clear-Host
       Write-Header "Pico Root Menu"
-      Write-Host " [" -NoNewline -ForegroundColor DarkGray
-      Write-Host "1" -NoNewline -ForegroundColor Cyan
-      Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Prepare Magisk " -NoNewline
-      Write-Host "(Install APK & Firmware link)" -ForegroundColor DarkGray
-
-      Write-Host " [" -NoNewline -ForegroundColor DarkGray
-      Write-Host "2" -NoNewline -ForegroundColor Cyan
-      Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Flash Magisk " -NoNewline
-      Write-Host "(Fastboot)" -ForegroundColor DarkGray
-
+      Write-Host " [${cCyan}1${cReset}] Prepare Magisk ${cDarkGray}(Install APK & Firmware link)${cReset}"
+      Write-Host " [${cCyan}2${cReset}] Flash Magisk ${cDarkGray}(Fastboot)${cReset}"
       Write-Host ""
-
-      Write-Host " [" -NoNewline -ForegroundColor DarkGray
-      Write-Host "r" -NoNewline -ForegroundColor Cyan
-      Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Reboot to System"
-
-      Write-Host " [" -NoNewline -ForegroundColor DarkGray
-      Write-Host "0" -NoNewline -ForegroundColor Cyan
-      Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Back to Main Menu"
+      Write-Host " [${cCyan}r${cReset}] Reboot to System"
+      Write-Host " [${cCyan}0${cReset}] Back to Main Menu"
 
       $choice = Read-Host "`nSelect an option"
 

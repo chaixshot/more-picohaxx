@@ -92,11 +92,8 @@ function Check-Prerequisites {
    if (-not $driverInstalled) {
       Write-Log "The WinUSB driver for ${cCyan}EDL mode (Qualcomm 9008)${cReset} does not appear to be installed." "Warning"
       Write-Log "This is required for flashing the ${cYellow}bootloader${cReset}." "Info"
-      Write-Host "Press " -NoNewline
-      Write-Host "Y" -ForegroundColor Cyan -NoNewline
-      Write-Host " to install the driver now, or " -NoNewline
-      Write-Host "N" -ForegroundColor Yellow -NoNewline
-      Write-Host " to skip (Requires Administrator privileges): " -NoNewline
+      Write-Host "Press ${cCyan}Y${cReset} to install the driver now, or ${cYellow}N${cReset} to skip (Requires Administrator privileges): " -NoNewline
+
       $choice = Read-Host
       if ($choice -eq 'Y' -or $choice -eq 'y') {
          $installScript = Join-Path $DRIVER "install.ps1"
@@ -155,9 +152,7 @@ function Flash-EngineeringAbl {
    Write-Log "This step will reboot your device into ${cCyan}EDL (Emergency Download)${cReset} mode to flash engineering files." "Warning"
    Write-Log "This is a critical part of the unlock process." "Warning"
 
-   Write-Host "`nTo proceed with rebooting to EDL, type " -NoNewline
-   Write-Host "'YES'" -ForegroundColor Yellow -NoNewline
-   Write-Host " and press Enter: " -NoNewline
+   Write-Host "`nTo proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
    $rebootConfirmation = Read-Host
    if ($rebootConfirmation -ne 'YES') {
       Write-Log "Reboot to EDL aborted by user. No changes have been made." "Warning"
@@ -216,9 +211,7 @@ function Perform-FastbootUnlock {
    }
    elseif (-not (IsFastbootMode)) {
       Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode. Please ensure it's connected and in bootloader mode." "Error"
-      Write-Host " (Typically: Hold " -NoNewline
-      Write-Host "Vol Down + Power" -ForegroundColor Yellow -NoNewline
-      Write-Host " from a powered-off state)"
+      Write-Host " (Typically: Hold ${cYellow}Vol Down + Power${cReset} from a powered-off state)"
    }
 
    if (-not (Wait-FastbootMode 100)) {
@@ -318,16 +311,9 @@ function Get-LatestBackupPath {
          while (-not $selectedFolder) {
             Write-Host "`nAvailable backup folders:" -ForegroundColor Cyan
             for ($i = 0; $i -lt $folders.Count; $i++) {
-               Write-Host " [" -NoNewline -ForegroundColor DarkGray
-               Write-Host "$i" -NoNewline -ForegroundColor Cyan
-               Write-Host "] " -NoNewline -ForegroundColor DarkGray
-               Write-Host "$($folders[$i].Name)"
+               Write-Host " [${cCyan}$i${cReset}] $($folders[$i].Name)"
             }
-            Write-Host "`nSelect a backup folder (enter index or folder name, default [" -NoNewline
-            Write-Host "0" -ForegroundColor Cyan -NoNewline
-            Write-Host "] for latest, '" -NoNewline
-            Write-Host "c" -ForegroundColor Yellow -NoNewline
-            Write-Host "' to cancel): " -NoNewline
+            Write-Host "`nSelect a backup folder (enter index or folder name, default [${cCyan}0${cReset}] for latest, '${cYellow}c${cReset}' to cancel): " -NoNewline
             $selection = Read-Host
 
             if ([string]::IsNullOrWhiteSpace($selection)) {
@@ -376,9 +362,7 @@ change back to Permissive mode" "Info"
    $backupDevInfo = Join-Path $backupFolder "devinfo.bin"
 
    Write-Log "Target backup folder: ${cGreen}$backupFolder${cReset}" "Info"
-   Write-Host "`nAre you sure you want to flash this backup? (Type " -NoNewline
-   Write-Host "'YES'" -ForegroundColor Yellow -NoNewline
-   Write-Host "): " -NoNewline
+   Write-Host "`nAre you sure you want to flash this backup? (Type ${cYellow}'YES'${cReset}): " -NoNewline
    $confirmation = Read-Host
    if ($confirmation -ne 'YES') {
       Write-Log "Restore aborted by user." "Warning"
@@ -416,9 +400,7 @@ function Perform-FastbootLock {
    }
    elseif (-not (IsFastbootMode)) {
       Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode. Please ensure it's connected and in bootloader mode." "Error"
-      Write-Host " (Typically: Hold " -NoNewline
-      Write-Host "Vol Down + Power" -ForegroundColor Yellow -NoNewline
-      Write-Host " from a powered-off state)"
+      Write-Host " (Typically: Hold ${cYellow}Vol Down + Power${cReset} from a powered-off state)"
    }
 
    if (-not (Wait-FastbootMode 100)) {
@@ -516,54 +498,16 @@ try {
       Check-Prerequisites
       Write-Header "PicoUnlock Main Menu"
 
-      Write-Host " [" -NoNewline -ForegroundColor DarkGray
-      Write-Host "1" -NoNewline -ForegroundColor Cyan
-      Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Generate UnlockCode"
-
-      Write-Host " [" -NoNewline -ForegroundColor DarkGray
-      Write-Host "2" -NoNewline -ForegroundColor Cyan
-      Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Flash Engineering ABL"
-
-      Write-Host " [" -NoNewline -ForegroundColor DarkGray
-      Write-Host "3" -NoNewline -ForegroundColor Cyan
-      Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Unlock bootloader"
-
-      Write-Host " [" -NoNewline -ForegroundColor DarkGray
-      Write-Host "4" -NoNewline -ForegroundColor Cyan
-      Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Root " -NoNewline
-      Write-Host "(Superuser)" -ForegroundColor DarkGray
-
-      Write-Host " [" -NoNewline -ForegroundColor DarkGray
-      Write-Host "5" -NoNewline -ForegroundColor Cyan
-      Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Flash backup ABL " -NoNewline
-      Write-Host "(Fix slow boot, fix boot into EDL)" -ForegroundColor DarkGray
-
-      Write-Host " [" -NoNewline -ForegroundColor DarkGray
-      Write-Host "6" -NoNewline -ForegroundColor Cyan
-      Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Lock bootloader"
-
+      Write-Host " [${cCyan}1${cReset}] Generate UnlockCode"
+      Write-Host " [${cCyan}2${cReset}] Flash Engineering ABL"
+      Write-Host " [${cCyan}3${cReset}] Unlock bootloader"
+      Write-Host " [${cCyan}4${cReset}] Root (Superuser)"
+      Write-Host " [${cCyan}5${cReset}] Flash backup ABL (Fix slow boot, fix boot into EDL)"
+      Write-Host " [${cCyan}6${cReset}] Lock bootloader"
       Write-Host ""
-
-      Write-Host " [" -NoNewline -ForegroundColor DarkGray
-      Write-Host "r" -NoNewline -ForegroundColor Cyan
-      Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Reboot to System"
-
-      Write-Host " [" -NoNewline -ForegroundColor DarkGray
-      Write-Host "b" -NoNewline -ForegroundColor Cyan
-      Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Backup/Resotre"
-
-      Write-Host " [" -NoNewline -ForegroundColor DarkGray
-      Write-Host "0" -NoNewline -ForegroundColor Cyan
-      Write-Host "] " -NoNewline -ForegroundColor DarkGray
-      Write-Host "Exit"
+      Write-Host " [${cCyan}r${cReset}] Reboot to System"
+      Write-Host " [${cCyan}b${cReset}] Backup/Resotre"
+      Write-Host " [${cCyan}0${cReset}] Exit"
 
       $choice = Read-Host "`nSelect an option"
 
