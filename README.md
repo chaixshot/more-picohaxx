@@ -3,12 +3,13 @@
 <img height="300" alt="unlocked" src="./src/unlocked.jpg" /> <img height="300" alt="unlocked" src="./src/mainmenu.png" />
 
 This repository contains a comprehensive set of tools and scripts to unlock the bootloader and root the **Pico 4** (confirmed), **Pico 4 Pro** (confirmed), and **Pico Neo 3** VR headsets.
+### [Download Tool](https://github.com/chaixshot/more-picohaxx-tool/archive/refs/heads/main.zip)
 
 > [!CAUTION]
 > **!!! DO A FULL BACKUP FIRST !!!**
 > It is highly recommended to perform a **full LUN backup via EDL** before starting.
 > Unlocking the bootloader **WILL WIPE ALL USER DATA**. Use the built-in **Backup/Restore** menu before proceeding.
-
+> 
 ## 📦 Backup & Restore
 This tool now includes a built-in **Backup/Restore** suite (Option `b` in the main menu) to protect your device data.
 
