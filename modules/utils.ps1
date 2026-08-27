@@ -1,3 +1,15 @@
+#Requires -Version 5.1
+
+<#
+.SYNOPSIS
+    Utility functions for the PicoUnlock project.
+.DESCRIPTION
+    Provides common functions for logging, UI headers, device mode detection,
+    and rebooting operations. Used across all PicoUnlock modules.
+#>
+
+# --- Utility Functions ---
+
 $e = [char]27
 $cReset = "$e[0m"
 $cCyan = "$e[36m"
@@ -7,6 +19,7 @@ $cMagenta = "$e[35m"
 $cRed = "$e[31m"
 $cBold = "$e[1m"
 $cGray = "$e[90m"
+$cDarkGray = "$e[90m"
 $cWhite = "$e[97m"
 
 function Write-Log([string]$Message, [string]$Type = "Info")
@@ -41,16 +54,15 @@ function Write-Header([string]$Title)
     $Border = "#" * $BorderLength
 
     Write-Host "`n"
-    Write-Host " $Border " -ForegroundColor DarkGray
-    Write-Host " # $Title # " -ForegroundColor Cyan
-    Write-Host " $Border " -ForegroundColor DarkGray
+    Write-Host " ${cDarkGray}$Border${cReset} "
+    Write-Host " ${cCyan}# $Title #${cReset} "
+    Write-Host " ${cDarkGray}$Border${cReset} "
 }
 
 # Function to check if a command exists
-function Test-CommandExists
+function Test-CommandExists([string]$Command)
 {
-    param($command)
-    return (Get-Command $command -ErrorAction SilentlyContinue)
+    return (Get-Command $Command -ErrorAction SilentlyContinue)
 }
 
 function IsEdlMode
@@ -213,8 +225,8 @@ function Reboot-System
     }
     elseif (IsAdbMode)
     {
-        Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Rebooting to ${cCyan}system${cReset}..." "Action"
-        & $ADB reboot
+        ADB-To-System
+
         if ($LASTEXITCODE -eq 0)
         {
             Write-Log "Reboot command sent successfully." "Success"
@@ -253,23 +265,37 @@ function Warning-EDL
     Write-Log "Manually boot to EDL by Hold ${cYellow}Vol Up + Vol Down + Power${cReset} from off state." "Info"
 }
 
-function ADB-TO-FASTBOOT
+function ADB-To-Fastboot
 {
     Write-Host ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Info"
     & $ADB reboot bootloader
 }
 
-function ADB-TO-EDL
+function ADB-To-Edl
 {
     Write-Host ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Info"
     & $ADB reboot edl
 }
 
-function FASTBOOT-TO-STSTEM
+function ADB-To-System
+{
+    Write-Host ""
+    Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Info"
+    & $ADB reboot
+}
+
+function Fastboot-To-System
 {
     Write-Host ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Info"
     & $FASTBOOT reboot
+}
+
+function Fastboot-To-Fastboot
+{
+    Write-Host ""
+    Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Info"
+    & $FASTBOOT reboot bootloader
 }

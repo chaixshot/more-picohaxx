@@ -1,3 +1,13 @@
+#Requires -Version 5.1
+
+<#
+.SYNOPSIS
+    Root functions for the PicoUnlock project.
+.DESCRIPTION
+    Provides functionality for installing Magisk, patching the boot image,
+    and flashing the patched image to achieve superuser access.
+#>
+
 # --- Root Functions ---
 
 $Magisk = ".\tools\Magisk4Pico.apk"
@@ -9,7 +19,7 @@ function Prepare-Magisk
 
     if (IsFastbootMode)
     {
-        FASTBOOT-TO-STSTEM
+        Fastboot-To-System
     }
     elseif (-not (IsAdbMode))
     {
@@ -135,7 +145,7 @@ function Flash-Magisk
 
     if (IsAdbMode)
     {
-        ADB-TO-FASTBOOT
+        ADB-To-Fastboot
     }
     elseif (-not (IsFastbootMode))
     {
@@ -230,8 +240,7 @@ function Flash-Magisk
         if ($LASTEXITCODE -eq 0)
         {
             Write-Log "Flash successful!" "Success"
-            Write-Log "Rebooting device to ${cCyan}system${cReset}..." "Info"
-            & $FASTBOOT reboot
+            Fastboot-To-System
         }
         else
         {

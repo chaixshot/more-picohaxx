@@ -1,3 +1,5 @@
+#Requires -Version 5.1
+
 <#
 .SYNOPSIS
     Backup and Restore functions for the PicoUnlock project.
@@ -5,6 +7,8 @@
     Provides functionality for backing up device partitions using QPST/QFIL
     and restoring them. Includes prerequisite checks for QPST installation.
 #>
+
+# --- Backup & Restore Functions ---
 
 $ProjectRoot = Split-Path -Path $PSScriptRoot -Parent
 $QPSTInstaller = Join-Path $ProjectRoot "tools\qpst\QPST Tool v2.7.496.exe"
@@ -111,7 +115,7 @@ function Start-QFILHelper
     }
 }
 
-function QFIL-Instructions
+function QFIL-ShowInstructions
 {
     Clear-Host
     Write-Header "QFIL Instructions"
@@ -201,7 +205,7 @@ function Select-BackupFolder
 
     # Copy all files from selected Backup folder to Flash
     Write-Log "Copying contents from '$( $targetBackup.Name )' to 'Flash'..." "Action"
-    Copy-Item -Path "$( $targetBackup.FullName )\*" -Destination $FlashPath -Recurse -Force
+    Copy-Item -Path "$( $targetBackup.FullName )\\*" -Destination $FlashPath -Recurse -Force
 
     Write-Log "Flash folder prepared successfully." "Success"
     Wait-Continue
@@ -217,7 +221,7 @@ function Backup-Device
     # Reboot EDL
     if (IsAdbMode)
     {
-        ADB-TO-EDL
+        ADB-To-Edl
     }
     elseif (-not (IsEdlMode))
     {
@@ -232,7 +236,7 @@ function Backup-Device
 
     $latestBackup = Get-ChildItem -Path $BackupPath -Directory -Filter "Backup-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
-    QFIL-Instructions
+    QFIL-ShowInstructions
     Write-Log "After press Enter, select ${cCyan}1-Full backup (LUN mode)${cReset}" "Info"
     Write-Log "Wait for process finish select ${cCyan}Q-Quit${cReset}" "Info"
 
@@ -268,7 +272,7 @@ function Restore-Backup
     # Reboot EDL
     if (IsAdbMode)
     {
-        ADB-TO-EDL
+        ADB-To-Edl
     }
     elseif (-not (IsEdlMode))
     {
@@ -281,7 +285,7 @@ function Restore-Backup
         return
     }
 
-    QFIL-Instructions
+    QFIL-ShowInstructions
     Write-Log "After press Enter, select ${cCyan}5-Flash files${cReset}" "Info"
     Write-Log "Wait for process finish select ${cCyan}Q-Quit${cReset}" "Info"
 

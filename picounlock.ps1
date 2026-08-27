@@ -194,7 +194,7 @@ function Flash-EngineeringAbl
     # Reboot EDL
     if (IsAdbMode)
     {
-        ADB-TO-EDL
+        ADB-To-Edl
     }
     elseif (-not (IsEdlMode))
     {
@@ -223,6 +223,8 @@ function Flash-EngineeringAbl
     }
     Write-Log "Original partitions backed up to ${cGreen}'$currentBackupPath'${cReset}." "Success"
     Write-Log "Engineering ABL and Devinfo flashed successfully." "Success"
+    Write-Log "Engineering ABL might reboot device to EDL mode sometimes." "Warning"
+    Write-Log "Your device will automatically reboot to the system." "Info"
 }
 
 function Perform-FastbootUnlock
@@ -232,7 +234,7 @@ function Perform-FastbootUnlock
 
     if (IsAdbMode)
     {
-        ADB-TO-FASTBOOT
+        ADB-To-Fastboot
     }
     elseif (-not (IsFastbootMode))
     {
@@ -264,16 +266,13 @@ function Perform-FastbootUnlock
     }
 
     Wait-Continue
-    Verify-Unlock
-    Show-UnlockFinalInstructions
 }
 
 function Verify-Unlock
 {
     Clear-Host
     Write-Header "Verify Unlock"
-    Write-Log "Rebooting to ${cCyan}bootloader${cReset} to check if the unlock persists." "Info"
-    & $FASTBOOT reboot bootloader
+    Fastboot-To-Fastboot
 
     if (-not (Wait-FastbootMode 100))
     {
@@ -312,15 +311,13 @@ function Show-UnlockFinalInstructions
     Write-Log "After rebooting, you will likely be prompted to perform a ${cYellow}factory reset${cReset}. This is expected." "Info"
     Write-Log "After the factory reset, your device will boot normally." "Info"
 
-    if (Wait-FastbootMode 100)
-    {
-        Write-Log "Rebooting device to ${cCyan}system${cReset}..." "Action"
-        & $FASTBOOT reboot
-    }
-    else
+    if (-not (Wait-FastbootMode 100))
     {
         Warning-FASTBOOT
+        return
     }
+
+    Fastboot-To-System
 }
 
 function Get-LatestBackupPath
@@ -421,29 +418,29 @@ function Restore-OriginalAbl
 
     if (IsAdbMode)
     {
-        ADB-TO-EDL
+        ADB-To-Edl
     }
     elseif (-not (IsEdlMode))
     {
         Warning-EDL
     }
 
-    if (Wait-EdlMode 100)
+    if (-not (Wait-EdlMode 100))
     {
-        & $QDL --storage ufs --include (Split-Path $FirehoseTargetPath -Parent) $FirehoseTargetPath write abl $backupAbl write devinfo $backupDevInfo
-        if ($LASTEXITCODE -eq 0)
-        {
-            Write-Log "Original partitions restored successfully!" "Success"
-        }
-        else
-        {
-            Write-Log "Failed to restore backup partitions." "Error"
-        }
+        Warning-EDL
+        return
+    }
+
+    & $QDL --storage ufs --include (Split-Path $FirehoseTargetPath -Parent) $FirehoseTargetPath write abl $backupAbl write devinfo $backupDevInfo
+    if ($LASTEXITCODE -eq 0)
+    {
+        Write-Log "Your device will automatically reboot to the system." "Info"
     }
     else
     {
-        Warning-EDL
+        Write-Log "Failed to restore backup partitions." "Error"
     }
+    Write-Log "Original partitions restored successfully!" "Success"
 }
 
 function Perform-FastbootLock
@@ -453,7 +450,7 @@ function Perform-FastbootLock
 
     if (IsAdbMode)
     {
-        ADB-TO-FASTBOOT
+        ADB-To-Fastboot
     }
     elseif (-not (IsFastbootMode))
     {
@@ -498,16 +495,13 @@ function Perform-FastbootLock
     }
 
     Wait-Continue
-    Verify-Lock
-    Show-LockFinalInstructions
 }
 
 function Verify-Lock
 {
     Clear-Host
     Write-Header "Verify Lock"
-    Write-Log "Rebooting to ${cCyan}bootloader${cReset} to check the lock state." "Info"
-    & $FASTBOOT reboot bootloader
+    Fastboot-To-Fastboot
 
     if (-not (Wait-FastbootMode 100))
     {
@@ -543,15 +537,13 @@ function Show-LockFinalInstructions
     Write-Log "After rebooting, you will likely be prompted to perform a ${cYellow}factory reset${cReset}. This is expected." "Info"
     Write-Log "After the factory reset, check the bootloader state again in settings or bootloader mode to verify." "Info"
 
-    if (Wait-FastbootMode 100)
-    {
-        Write-Log "Rebooting device to ${cCyan}system${cReset}..." "Action"
-        & $FASTBOOT reboot
-    }
-    else
+    if (-not (Wait-FastbootMode 100))
     {
         Warning-FASTBOOT
+        return
     }
+
+    Fastboot-To-System
 }
 
 
@@ -602,6 +594,8 @@ try
             }
             "3" {
                 Perform-FastbootUnlock
+                Verify-Unlock
+                Show-UnlockFinalInstructions
             }
             "4" {
                 Show-RootMenu
@@ -611,6 +605,8 @@ try
             }
             "l" {
                 Perform-FastbootLock
+                Verify-Lock
+                Show-LockFinalInstructions
             }
             "r" {
                 Reboot-System
