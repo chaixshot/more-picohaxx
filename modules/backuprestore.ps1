@@ -1,11 +1,22 @@
-# --- Backup/Restore Functions ---
+<#
+.SYNOPSIS
+    Backup and Restore functions for the PicoUnlock project.
+.DESCRIPTION
+    Provides functionality for backing up device partitions using QPST/QFIL
+    and restoring them. Includes prerequisite checks for QPST installation.
+#>
 
-$QPSTInstaller = ".\tools\qpst\QPST Tool v2.7.496.exe"
+$ProjectRoot = Split-Path -Path $PSScriptRoot -Parent
+$QPSTInstaller = Join-Path $ProjectRoot "tools\qpst\QPST Tool v2.7.496.exe"
 $QFILPath = "${env:ProgramFiles(x86)}\Qualcomm\QPST\bin\QFIL.exe"
-$QFILHelper = ".\tools\qpst\QFILHelper.exe"
+$QFILHelper = Join-Path $ProjectRoot "tools\qpst\QFILHelper.exe"
+
+$BackupPath = Join-Path $ProjectRoot "tools\qpst"
+$FlashPath = Join-Path $BackupPath "Flash"
 
 function Check-BackupPrerequisites
 {
+    Clear-Host
     Write-Header "Backup Prerequisite Checks"
 
     $isReady = $true
@@ -17,9 +28,7 @@ function Check-BackupPrerequisites
         if (Test-Path $QPSTInstaller)
         {
             Write-Log "QPST Installer found at ${cYellow}$QPSTInstaller${cReset}." "Info"
-            Write-Host "Press " -NoNewline
-            Write-Host "Y" -ForegroundColor Cyan -NoNewline
-            Write-Host " to run the installer now, or any other key to skip: " -NoNewline
+            Write-Host "Press ${cCyan}Y${cReset} to run the installer now, or any other key to skip: " -NoNewline
             $choice = Read-Host
             if ($choice -eq 'Y' -or $choice -eq 'y')
             {
@@ -49,9 +58,7 @@ function Check-BackupPrerequisites
     }
 
     # 2. Check for local QFILHelper
-    $ProjectRoot = Split-Path -Path $PSScriptRoot -Parent
-    $QFILHelperFullPath = Join-Path -Path $ProjectRoot -ChildPath $QFILHelper
-    if (-not (Test-Path $QFILHelperFullPath))
+    if (-not (Test-Path $QFILHelper))
     {
         Write-Log "Required tool ${cRed}$QFILHelper${cReset} not found." "Error"
         $isReady = $false
@@ -63,7 +70,7 @@ function Check-BackupPrerequisites
 
     if (-not $isReady)
     {
-        Write-Log "Some backup/restore prerequisites are missing. Functions may not work correctly." "Warning"
+        Write-Log "Some prerequisites are missing. Functions may not work correctly." "Warning"
         Wait-Continue
     }
 
@@ -75,11 +82,11 @@ function Get-QualcommCOMPort
     Write-Log "Scanning for Qualcomm Emergency Download (EDL) device..." "Info"
 
     # Query WMI for devices matching "Qualcomm" and "9008" or "QDLoader"
-    $Device = Get-CimInstance -ClassName Win32_PnPEntity |
+    $device = Get-CimInstance -ClassName Win32_PnPEntity |
             Where-Object { $_.Name -match "Qualcomm.*QDLoader.*9008|Qualcomm.*HS-USB.*9008" } |
             Select-Object -First 1
 
-    if ($Device -and $Device.Name -match '\(COM(\d+)\)')
+    if ($device -and $device.Name -match '\(COM(\d+)\)')
     {
         # Extract the digit inside (COMx)
         return [int]$Matches[1]
@@ -89,60 +96,35 @@ function Get-QualcommCOMPort
 
 function Start-QFILHelper
 {
-    $ProjectRoot = Split-Path -Path $PSScriptRoot -Parent
-    $QFILHelperFullPath = Join-Path -Path $ProjectRoot -ChildPath $QFILHelper
-    if (Test-Path -Path $QFILHelperFullPath)
+    if (Test-Path -Path $QFILHelper)
     {
-        $QFILHelperFile = Get-Item -Path $QFILHelperFullPath
-        $ExecutablePath = $QFILHelperFile.FullName
-        $WorkingDirectory = $QFILHelperFile.DirectoryName
+        $qfilHelperFile = Get-Item -Path $QFILHelper
+        $executablePath = $qfilHelperFile.FullName
+        $workingDirectory = $qfilHelperFile.DirectoryName
         # Run QFILHelper in the current window and wait
-        Start-Process -FilePath $ExecutablePath -WorkingDirectory $WorkingDirectory -NoNewWindow -Wait
+        Start-Process -FilePath $executablePath -WorkingDirectory $workingDirectory -NoNewWindow -Wait
     }
     else
     {
-        Write-Log "QFILHelper.exe was not found at: $QFILHelperFullPath" "Error"
+        Write-Log "QFILHelper.exe was not found at: $QFILHelper" "Error"
         return
     }
 }
 
-function Backup-Device
+function QFIL-Instructions
 {
     Clear-Host
-    Write-Header "Backup Device"
+    Write-Header "QFIL Instructions"
 
-    Select-Firehose
-
-    # Reboot EDL
-    if (IsAdbMode) {
-        Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Info"
-        & $ADB reboot edl
-    }
-    elseif (-not (IsEdlMode)) {
-        Write-Log "Device not detected in ${cCyan}ADB${cReset} mode. Please connect your device and enable ${cYellow}USB debugging${cReset}." "Error"
-        Write-Log "Please ensure drivers are installed (run ${cYellow}qdl-driver\install.ps1${cReset} as Admin)." "Error"
-        Write-Log "Manually boot to EDL (Hold ${cYellow}Vol Up + Vol Down + Power${cReset} from off state), then re-run this script." "Error"
-    }
-
-    if (-not (Wait-EdlMode 100))
-    {
-        Write-Log "Device not detected in EDL mode." "Error"
-        Write-Log "Hold ${cYellow}Vol Up + Vol Down + Power${cReset} from off state to enter EDL." "Info"
-        return
-    }
-
-    $COMPort = Get-QualcommCOMPort
-    if ($null -eq $COMPort)
+    $comPort = Get-QualcommCOMPort
+    if ($null -eq $comPort)
     {
         Write-Log "Failed to detect COM port for EDL device." "Error"
         return
     }
 
-    Write-Log "EDL Device detected on COM$COMPort" "Success"
-    Write-Host ""
-    Write-Host "--- QFIL Backup Instructions ---" -ForegroundColor Yellow
     Write-Host "1. QFIL Window will open shortly."
-    Write-Host "2. Select Port: ${cCyan}Qualcomm HS-USB QDLoader 9008 (COM$COMPort)${cReset} and press OK"
+    Write-Host "2. Select Port: ${cCyan}Qualcomm HS-USB QDLoader 9008 (COM$comPort)${cReset} and press OK"
     Write-Host "3. Select Build Type: ${cCyan}Flat Build${cReset}"
     Write-Host "4. Select Programmer > Browse... > ${cCyan}$FirehoseTargetPath${cReset}"
     Write-Host "5. Bottom - Storage Type: ${cCyan}ufs${cReset}"
@@ -154,95 +136,190 @@ function Backup-Device
     Write-Host "10. Minimize or leave Partition Manager open."
     Write-Host ""
     Write-Log "Once you have saved the partition file, return here and press Enter." "Action"
+}
+
+function Post-Steps
+{
+    Clear-Host
+    Write-Header "Post Steps"
+    Write-Log "Your device will not automatically reboot." "Info"
+    Write-Log "Hold ${cYellow}Power Button${cReset} for 10 seconds to reboot to system." "Info"
+}
+
+# Ensure target Flash folder exists and clear it
+function Clean-FlashFolder
+{
+    if (Test-Path -Path $FlashPath)
+    {
+        Write-Log "Clearing existing contents in Flash folder: $FlashPath" "Info"
+        Remove-Item -Path "$FlashPath\*" -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    else
+    {
+        Write-Log "Creating Flash folder: $FlashPath" "Info"
+        New-Item -Path $FlashPath -ItemType Directory | Out-Null
+    }
+}
+
+function Select-BackupFolder
+{
+    Clear-Host
+    Write-Header "Select Backup Folder"
+
+    $backupFolders = Get-ChildItem -Path $BackupPath -Directory -Filter "Backup-*" | Sort-Object CreationTime -Descending
+
+    if ($backupFolders.Count -eq 0)
+    {
+        Write-Log "No backup folders found in '$BackupPath'." "Error"
+        return $null
+    }
+
+    Write-Log "Listing available backup folders..." "Info"
+    Write-Host "`nAvailable Backup Folders:" -ForegroundColor Cyan
+    for ($i = 0; $i -lt $backupFolders.Count; $i++) {
+        Write-Host " [${cCyan}$( $i + 1 )${cReset}] $( $backupFolders[$i].Name ) ${cGreen}($( $backupFolders[$i].CreationTime ))${cReset}"
+    }
+
+    $selection = Read-Host "`nSelect a backup folder [${cCyan}1-$( $backupFolders.Count )${cReset}], 'c' to cancel"
+
+    if ($selection -eq 'c')
+    {
+        Write-Log "Operation cancelled by user." "Info"
+        return $null
+    }
+
+    if (-not [int]::TryParse($selection, [ref]$null) -or [int]$selection -lt 1 -or [int]$selection -gt $backupFolders.Count)
+    {
+        Write-Log "Invalid selection '$selection'. Aborting." "Error"
+        return $null
+    }
+
+    $targetBackup = $backupFolders[[int]$selection - 1]
+    Write-Log "Selected backup folder: $( $targetBackup.Name )" "Success"
+
+    Clean-FlashFolder
+
+    # Copy all files from selected Backup folder to Flash
+    Write-Log "Copying contents from '$( $targetBackup.Name )' to 'Flash'..." "Action"
+    Copy-Item -Path "$( $targetBackup.FullName )\*" -Destination $FlashPath -Recurse -Force
+
+    Write-Log "Flash folder prepared successfully." "Success"
+    Wait-Continue
+
+    return $targetBackup
+}
+
+function Backup-Device
+{
+    Clear-Host
+    Write-Header "Backup Device"
+
+    # Reboot EDL
+    if (IsAdbMode)
+    {
+        Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset}..." "Action"
+        & $ADB reboot edl
+    }
+    elseif (-not (IsEdlMode))
+    {
+        Warning-ADB
+        Warning-EDL
+    }
+
+    if (-not (Wait-EdlMode 100))
+    {
+        Warning-EDL
+        return
+    }
+
+    $latestBackup = Get-ChildItem -Path $BackupPath -Directory -Filter "Backup-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+
+    QFIL-Instructions
     Write-Log "After press Enter, select ${cCyan}1-Full backup (LUN mode)${cReset}" "Info"
     Write-Log "Wait for process finish select ${cCyan}Q-Quit${cReset}" "Info"
-    Write-Host ""
 
     # Start QFIL
-    Start-Process -FilePath $QFILPath
-
+    $qfilProc = Start-Process -FilePath $QFILPath -PassThru
     Wait-Continue "launch QFILHelper and start partition backup..."
 
     # Start the automated helper
     Start-QFILHelper
-    Clear-Host
+
+    # Stop QFIL
+    Stop-Process -InputObject $qfilProc -ErrorAction SilentlyContinue
 
     # Post-process organization
-    $ProjectRoot = Split-Path -Path $PSScriptRoot -Parent
-    $QPSTToolsDir = Join-Path $ProjectRoot "tools\qpst"
-    $LatestBackup = Get-ChildItem -Path $QPSTToolsDir -Directory -Filter "Backup-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-
-    if ($LatestBackup)
+    $newBackup = Get-ChildItem -Path $BackupPath -Directory -Filter "Backup-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($null -eq $latestBackup -or $latestBackup.FullName -ne $newBackup.FullName)
     {
-        Write-Log "Detected new backup at: ${cCyan}$($LatestBackup.FullName)${cReset}" "Success"
+        Write-Log "Detected new backup at: ${cCyan}$( $newBackup.FullName )${cReset}" "Success"
     }
     else
     {
         Write-Log "Could not automatically find the backup folder in tools\qpst." "Warning"
     }
 
-    Write-Host ""
-    Write-Host "--- Post-Backup Steps ---" -ForegroundColor Yellow
-    Write-Host "1. Close ${cCyan}Partition Manager${cReset} window > Press OK to reset EDL."
-    Write-Host "2. Wait for ${cCyan}'Finish Reset to EDL'${cReset} in status box, then close QFIL."
-    Write-Host "3. Hold ${cYellow}Power Button${cReset} for 10 seconds to reboot to system."
-    Write-Host ""
+    Wait-Continue
 }
 
 function Restore-Backup
 {
     Clear-Host
     Write-Header "Restore Device"
-    
-    Select-Firehose
+
+    # Reboot EDL
+    if (IsAdbMode)
+    {
+        Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset}..." "Action"
+        & $ADB reboot edl
+    }
+    elseif (-not (IsEdlMode))
+    {
+        Warning-ADB
+        Warning-EDL
+    }
+
+    if (-not (Wait-EdlMode 100))
+    {
+        Warning-EDL
+        return
+    }
+
+    QFIL-Instructions
+    Write-Log "After press Enter, select ${cCyan}5-Flash files${cReset}" "Info"
+    Write-Log "Wait for process finish select ${cCyan}Q-Quit${cReset}" "Info"
+
+    # Start QFIL
+    $qfilProc = Start-Process -FilePath $QFILPath -PassThru
+    Wait-Continue "launch QFILHelper and start partition backup..."
+
+    # Start the automated helper
+    Start-QFILHelper
+
+    # Stop QFIL
+    Stop-Process -InputObject $qfilProc -ErrorAction SilentlyContinue
+
+    Clean-FlashFolder
+    Wait-Continue
 }
 
 function Show-BackupRestoreMenu
 {
-    # Run prerequisite checks once when entering the menu
-    Clear-Host
-    if (-not (Check-BackupPrerequisites))
-    {
-        Write-Log "Prerequisite checks failed. Some features may not work." "Warning"
-        Wait-Continue
-    }
-    else
+    if (Check-BackupPrerequisites)
     {
         Clear-Host
-    }
-
-    # Ensure firehose is known
-    if ($null -eq $FirehoseTargetPath)
-    {
-        Select-Firehose
     }
 
     $menuQuit = $false
     while (-not $menuQuit)
     {
         Clear-Host
-        Write-Header "Pico Backup/Restore Menu"
-        Write-Host " [" -NoNewline -ForegroundColor DarkGray
-        Write-Host "1" -NoNewline -ForegroundColor Cyan
-        Write-Host "] " -NoNewline -ForegroundColor DarkGray
-        Write-Host "Backup Device (LUN Mode)"
-
-        Write-Host " [" -NoNewline -ForegroundColor DarkGray
-        Write-Host "2" -NoNewline -ForegroundColor Cyan
-        Write-Host "] " -NoNewline -ForegroundColor DarkGray
-        Write-Host "Restore Device (Partition Manager)"
-
+        Write-Header "Backup/Restore Menu"
+        Write-Host " [${cCyan}1${cReset}] Backup Device"
+        Write-Host " [${cCyan}2${cReset}] Restore Device"
         Write-Host ""
-
-        Write-Host " [" -NoNewline -ForegroundColor DarkGray
-        Write-Host "r" -NoNewline -ForegroundColor Cyan
-        Write-Host "] " -NoNewline -ForegroundColor DarkGray
-        Write-Host "Reboot to System"
-
-        Write-Host " [" -NoNewline -ForegroundColor DarkGray
-        Write-Host "0" -NoNewline -ForegroundColor Cyan
-        Write-Host "] " -NoNewline -ForegroundColor DarkGray
-        Write-Host "Back to Main Menu"
+        Write-Host " [${cCyan}r${cReset}] Reboot to System"
+        Write-Host " [${cCyan}0${cReset}] Back to Main Menu"
 
         $choice = Read-Host "`nSelect an option"
 
@@ -250,9 +327,14 @@ function Show-BackupRestoreMenu
         {
             "1" {
                 Backup-Device
+                Post-Steps
             }
             "2" {
-                Restore-Backup
+                if (Select-BackupFolder)
+                {
+                    Restore-Backup
+                    Post-Steps
+                }
             }
             "r" {
                 Reboot-System

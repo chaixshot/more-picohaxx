@@ -181,5 +181,18 @@ function Reboot-System {
     }
 }
 
-# Note: Export-ModuleMember is omitted to allow this file to be dot-sourced
-# while maintaining access to caller-scoped variables ($ADB, $FASTBOOT, etc.)
+function Warning-ADB {
+    Write-Log "Device not detected in ${cCyan}ADB${cReset} mode." "Error"
+    Write-Log "Please connect your device and enable ADB debugging." "Info"
+}
+
+function Warning-FASTBOOT {
+    Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Error"
+    Write-Log "Please ensure it's connected and in bootloader mode." "Error"
+    Write-Host "Manually boot to FASTBOOT by hold ${cYellow}Vol Down + Power${cReset} from off state"
+}
+
+function Warning-EDL {
+    Write-Log "Device not detected in EDL mode." "Error"
+    Write-Log "Manually boot to EDL by Hold ${cYellow}Vol Up + Vol Down + Power${cReset} from off state." "Info"
+}
