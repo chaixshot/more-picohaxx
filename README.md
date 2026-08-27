@@ -5,12 +5,23 @@
 This repository contains a comprehensive set of tools and scripts to unlock the bootloader and root the **Pico 4** (confirmed), **Pico 4 Pro** (confirmed), and **Pico Neo 3** VR headsets.
 
 > [!CAUTION]
-> **!!! DO A BACKUP FIRST WITH THE DOWNGRADER !!!**
-> It is highly recommended to use the **Downgrader tool** to perform a **full LUN backup via EDL** before starting.
-> Unlocking the bootloader **WILL WIPE ALL USER DATA**. Perform a backup before proceeding.
+> **!!! DO A FULL BACKUP FIRST !!!**
+> It is highly recommended to perform a **full LUN backup via EDL** before starting.
+> Unlocking the bootloader **WILL WIPE ALL USER DATA**. Use the built-in **Backup/Restore** menu before proceeding.
 
-## Backup
-Before starting the unlock process, it is **strongly advised** to use the **Downgrader tool** to create a full backup of all LUNs via EDL. This ensures you have a recovery path in case anything goes wrong during the partition flashing process.
+## 📦 Backup & Restore
+This tool now includes a built-in **Backup/Restore** suite (Option `b` in the main menu) to protect your device data.
+
+### Features
+*   **Full LUN Backup**: Perform a complete backup of all device partitions (LUN0-LUN5) via EDL mode.
+*   **Easy Restoration**: Swap between different backup sets using the `Select-BackupFolder` feature.
+*   **QFIL Integration**: Automates the complex QFIL/QPST workflow using the provided `QFILHelper`.
+
+### How to Backup
+1.  Select **Backup/Restore** from the main menu.
+2.  Choose **Backup Device (LUN Mode)**.
+3.  Follow the guided instructions to launch QFIL and save your partition configuration.
+4.  The tool will automatically organize your backup into timestamped folders.
 
 ## Status
 *   **Pico 4**: Confirmed working.
@@ -21,8 +32,8 @@ Before starting the unlock process, it is **strongly advised** to use the **Down
 *   **Windows PC**: The automation script is written in PowerShell.
 *   **Python**: Required for the unlock code generation logic (`more-picohaxx.py`).
 *   **Qualcomm Drivers**: `QDLoader 9008` drivers. If not installed, use the provided script in `tools/qdl-driver/`.
+*   **QPST / QFIL**: Required for the advanced Backup and Restore features. The script can help you install this from `tools/qpst/`.
 *   **Pico Device**: Pico 4, Pico 4 Pro, or Pico Neo 3 with **USB Debugging** enabled.
-*   **Backup**: Use the **Downgrader tool** to perform a **full LUN backup** (all partitions) via EDL before starting.
 
 ## ⚠️ WARNING
 *   **Risk**: Flashing firmware carries inherent risks. While this method is tested, you proceed at your own risk.
@@ -74,10 +85,11 @@ If the device is not detected in EDL mode (Qualcomm 9008):
 
 ## Key Components
 *   `picounlock.ps1`: The main automation script (PowerShell).
+*   `modules/`: Contains modularized logic for `utils`, `root`, and `backuprestore`.
 *   `picounlock.bat`: A convenient wrapper to run the script with Administrator privileges.
 *   `more-picohaxx.py`: The core logic for deriving the unlock code from the device serial number.
 *   `devinfo`: Engineering partition data required for the bypass.
-*   `tools/`: Contains `adb`, `fastboot`, and `qdl.exe` (for EDL flashing).
+*   `tools/`: Contains `adb`, `fastboot`, `qdl.exe`, and `qpst` tools.
 *   `Magisk4Pico.apk`: Included for rooting the device after unlocking.
 
 ## Credits
