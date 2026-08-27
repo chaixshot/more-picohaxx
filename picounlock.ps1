@@ -29,9 +29,10 @@ $PicoHaxxPyScript = ".\more-picohaxx.py"
 $DRIVER = ".\tools\qdl-driver"
 $Picounlock = ".\picounlock.txt"
 
-$FirehoseDDR4Path = ".\tools\firehoses\prog_firehose_ddr.elf"
-$FirehoseDDR5Path = ".\tools\firehoses\prog_firehose_lite.elf"
+$FirehoseDDR4Path = (Get-Item ".\tools\firehoses\prog_firehose_ddr.elf").FullName
+$FirehoseDDR5Path = (Get-Item ".\tools\firehoses\prog_firehose_lite.elf").FullName
 $FirehoseTargetPath = $null
+
 $AblPath = ".\tools\engineering\abl.elf"
 $DevInfoPath = ".\tools\engineering\devinfo"
 $AblBackupPath = ".\abl-backup"
@@ -45,6 +46,7 @@ $script:PatchedImagePath = $null
 # --- Helper Functions ---
 . "$PSScriptRoot/modules/utils.ps1"
 . "$PSScriptRoot/modules/root.ps1"
+. "$PSScriptRoot/modules/backuprestore.ps1"
 
 
 function Check-Prerequisites {
@@ -554,6 +556,11 @@ try {
       Write-Host "Reboot to System"
 
       Write-Host " [" -NoNewline -ForegroundColor DarkGray
+      Write-Host "b" -NoNewline -ForegroundColor Cyan
+      Write-Host "] " -NoNewline -ForegroundColor DarkGray
+      Write-Host "Backup/Resotre"
+
+      Write-Host " [" -NoNewline -ForegroundColor DarkGray
       Write-Host "0" -NoNewline -ForegroundColor Cyan
       Write-Host "] " -NoNewline -ForegroundColor DarkGray
       Write-Host "Exit"
@@ -586,6 +593,9 @@ try {
          }
          "r" {
             Reboot-System
+         }
+         "b" {
+            Show-BackupRestoreMenu
          }
          "0" {
             $quit = $true
