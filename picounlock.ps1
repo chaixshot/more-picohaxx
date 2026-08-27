@@ -34,7 +34,7 @@ $FirehoseDDR5Path = ".\tools\firehoses\prog_firehose_lite.elf"
 $FirehoseTargetPath = $null
 $AblPath = ".\tools\engineering\abl.elf"
 $DevInfoPath = ".\tools\engineering\devinfo"
-$AblBackupPath = ".\device-backup"
+$AblBackupPath = ".\abl-backup"
 
 $QDL = ".\tools\qdl.exe"
 $ADB = ".\tools\adb.exe"
@@ -180,8 +180,10 @@ function Flash-EngineeringAbl {
       Write-Log "Manually boot to EDL (Hold ${cYellow}Vol Up + Vol Down + Power${cReset} from off state), then re-run this script." "Error"
    }
 
-   if (-not (Wait-EdlMode 100)) {
-      Write-Log "Device not detected in ${cCyan}EDL${cReset} mode." "Error"
+   if (-not (Wait-EdlMode 100))
+   {
+      Write-Log "Device not detected in EDL mode." "Error"
+      Write-Log "Hold ${cYellow}Vol Up + Vol Down + Power${cReset} from off state to enter EDL." "Info"
       return
    }
 
@@ -503,7 +505,7 @@ function Show-LockFinalInstructions {
 
 $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 if (-not (Test-Path ".\logs")) { New-Item -ItemType Directory -Path ".\logs" | Out-Null }
-Start-Transcript -Path ".\logs\unlock_$timestamp.log" -Append
+Start-Transcript -Path ".\logs\$timestamp.log" -Append
 
 try {
    $quit = $false

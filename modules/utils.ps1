@@ -151,7 +151,7 @@ fastboot oem setenforce 0
 fastboot flashing unlock
 fastboot flashing unlock_critical
 "@
-    $instructions | Set-Content "./picounlock.txt"
+    $instructions | Set-Content $Picounlock
 
     return $unlockCommand
 }
