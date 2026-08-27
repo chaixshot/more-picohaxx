@@ -9,19 +9,32 @@ $cBold = "$e[1m"
 $cGray = "$e[90m"
 $cWhite = "$e[97m"
 
-function Write-Log ([string]$Message, [string]$Type = "Info") {
-    $Color = switch ($Type) {
-        "Success" { $cGreen }
-        "Warning" { $cYellow }
-        "Error" { $cRed }
-        "Action" { $cMagenta }
-        Default { $cGray }
+function Write-Log([string]$Message, [string]$Type = "Info")
+{
+    $Color = switch ($Type)
+    {
+        "Success" {
+            $cGreen
+        }
+        "Warning" {
+            $cYellow
+        }
+        "Error" {
+            $cRed
+        }
+        "Action" {
+            $cMagenta
+        }
+        Default {
+            $cGray
+        }
     }
     $Timestamp = Get-Date -Format "HH:mm:ss"
     Write-Host "${cGray}[$Timestamp] ${Color}[$Type] ${cReset}$Message"
 }
 
-function Write-Header ([string]$Title) {
+function Write-Header([string]$Title)
+{
     # Calculate the exact width needed for the border
     # 4 accounts for the " # " prefix and the trailing space/hashtag spacing
     $BorderLength = $Title.Length + 4
@@ -34,38 +47,46 @@ function Write-Header ([string]$Title) {
 }
 
 # Function to check if a command exists
-function Test-CommandExists {
+function Test-CommandExists
+{
     param($command)
     return (Get-Command $command -ErrorAction SilentlyContinue)
 }
 
-function IsEdlMode {
+function IsEdlMode
+{
     # Returns $true if a Qualcomm 9008 device is present.
     $edlDevice = Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -like "*USB\VID_05C6&PID_9008*" }
     return [bool]$edlDevice
 }
 
-function IsAdbMode {
+function IsAdbMode
+{
     $adbOutput = & $ADB devices
     return $adbOutput | Select-String -Pattern "`t" -Quiet
 }
 
-function IsFastbootMode {
+function IsFastbootMode
+{
     $fbDevices = & $FASTBOOT devices
     return $fbDevices -match "fastboot$"
 }
 
-function Wait-Continue ([string]$Action = "continue...") {
+function Wait-Continue([string]$Action = "continue...")
+{
     Write-Host "`nPress ${cCyan}Enter${cReset} to $Action" -NoNewline
     Read-Host | Out-Null
     Write-Host ""
 }
 
-function Wait-FastbootMode ([int]$Timeout = 100) {
+function Wait-FastbootMode([int]$Timeout = 100)
+{
     Write-Log "Waiting for device to enter ${cCyan}fastboot${cReset} mode..." "Info"
     $deviceDetected = $false
-    foreach ($i in 1..$Timeout) {
-        if (IsFastbootMode) {
+    foreach ($i in 1..$Timeout)
+    {
+        if (IsFastbootMode)
+        {
             Write-Host "`rFastboot device detected.                                 " -ForegroundColor Green
             $deviceDetected = $true
             break
@@ -77,11 +98,14 @@ function Wait-FastbootMode ([int]$Timeout = 100) {
     return $deviceDetected
 }
 
-function Wait-EdlMode ([int]$Timeout = 100) {
+function Wait-EdlMode([int]$Timeout = 100)
+{
     Write-Log "Waiting for device to enter ${cCyan}EDL mode (Qualcomm 9008)${cReset}..." "Info"
     $deviceDetected = $false
-    foreach ($i in 1..$Timeout) {
-        if (IsEdlMode) {
+    foreach ($i in 1..$Timeout)
+    {
+        if (IsEdlMode)
+        {
             Write-Host "`rEDL device detected.                                 " -ForegroundColor Green
             Start-Sleep -Seconds 5
             $deviceDetected = $true
@@ -94,11 +118,14 @@ function Wait-EdlMode ([int]$Timeout = 100) {
     return $deviceDetected
 }
 
-function Wait-AdbMode ([int]$Timeout = 100) {
+function Wait-AdbMode([int]$Timeout = 100)
+{
     Write-Log "Waiting for device to connect in ${cCyan}ADB${cReset} mode..." "Info"
     $deviceDetected = $false
-    foreach ($i in 1..$Timeout) {
-        if (IsAdbMode) {
+    foreach ($i in 1..$Timeout)
+    {
+        if (IsAdbMode)
+        {
             Write-Host "`rADB device detected.                                      " -ForegroundColor Green
             $deviceDetected = $true
             break
@@ -110,8 +137,10 @@ function Wait-AdbMode ([int]$Timeout = 100) {
     return $deviceDetected
 }
 
-function Select-Firehose {
-    if ($null -eq $script:FirehoseTargetPath) {
+function Select-Firehose
+{
+    if ($null -eq $script:FirehoseTargetPath)
+    {
         Write-Host "`n"
         Write-Log "Select your device model to use the correct firehose:" "Info"
         Write-Host " [${cCyan}1${cReset}] Pico 4 / Pico Neo 3 (DDR 4)"
@@ -119,21 +148,25 @@ function Select-Firehose {
 
         $fhChoice = Read-Host "`nSelect an option"
 
-        if ($fhChoice -eq "2") {
+        if ($fhChoice -eq "2")
+        {
             $script:FirehoseTargetPath = $FirehoseDDR5Path
             Write-Log "Using Lite Firehose for Pico 4 Pro." "Info"
         }
-        else {
+        else
+        {
             $script:FirehoseTargetPath = $FirehoseDDR4Path
             Write-Log "Using standard DDR Firehose." "Info"
         }
     }
 }
 
-function Invoke-PicoHaxxScript {
+function Invoke-PicoHaxxScript
+{
     # Run the python script and capture the unlock command
     $unlockCommand = (python $PicoHaxxPyScript | Select-String -Pattern "fastboot oem pico").Line
-    if (-not $unlockCommand) {
+    if (-not $unlockCommand)
+    {
         Write-Log "Failed to generate unlock code using the ${cCyan}python${cReset} script." "Error"
         return $null
     }
@@ -152,47 +185,58 @@ fastboot flashing unlock_critical
     return $unlockCommand
 }
 
-function Reboot-System {
+function Reboot-System
+{
     Clear-Host
     Write-Header "Rebooting to System"
 
-    if (IsFastbootMode) {
+    if (IsFastbootMode)
+    {
         Write-Log "Device detected in ${cCyan}Fastboot${cReset} mode. Rebooting to ${cCyan}system${cReset}..." "Action"
         & $FASTBOOT reboot
-        if ($LASTEXITCODE -eq 0) {
+        if ($LASTEXITCODE -eq 0)
+        {
             Write-Log "Reboot command sent successfully." "Success"
         }
-        else {
+        else
+        {
             Write-Log "Failed to execute fastboot reboot." "Error"
         }
     }
-    elseif (IsAdbMode) {
+    elseif (IsAdbMode)
+    {
         Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Rebooting to ${cCyan}system${cReset}..." "Action"
         & $ADB reboot
-        if ($LASTEXITCODE -eq 0) {
+        if ($LASTEXITCODE -eq 0)
+        {
             Write-Log "Reboot command sent successfully." "Success"
         }
-        else {
+        else
+        {
             Write-Log "Failed to execute adb reboot." "Error"
         }
     }
-    else {
+    else
+    {
         Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} or ${cCyan}ADB${cReset} mode. Please connect your device and ensure it is powered on." "Warning"
     }
 }
 
-function Warning-ADB {
+function Warning-ADB
+{
     Write-Log "Device not detected in ${cCyan}ADB${cReset} mode." "Error"
     Write-Log "Please connect your device and enable ADB debugging." "Info"
 }
 
-function Warning-FASTBOOT {
+function Warning-FASTBOOT
+{
     Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Error"
     Write-Log "Please ensure it's connected and in bootloader mode." "Error"
     Write-Host "Manually boot to FASTBOOT by hold ${cYellow}Vol Down + Power${cReset} from off state"
 }
 
-function Warning-EDL {
+function Warning-EDL
+{
     Write-Log "Device not detected in EDL mode." "Error"
     Write-Log "Manually boot to EDL by Hold ${cYellow}Vol Up + Vol Down + Power${cReset} from off state." "Info"
 }
