@@ -87,8 +87,7 @@ function Check-Prerequisites {
    Write-Host ""
 
    # Check for EDL driver and offer to install it
-   $driverPattern = "qdl_winusb\.inf|qcser\.inf"
-   $driverInstalled = (pnputil /enum-drivers) -join "`n" | Select-String -Pattern $driverPattern -Quiet
+   $driverInstalled = (pnputil /enum-drivers) -join "`n" -match "qcser\.inf"
    if (-not $driverInstalled) {
       Write-Log "The WinUSB driver for ${cCyan}EDL mode (Qualcomm 9008)${cReset} does not appear to be installed." "Warning"
       Write-Log "This is required for flashing the ${cYellow}bootloader${cReset}." "Info"
