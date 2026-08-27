@@ -194,13 +194,11 @@ function Flash-EngineeringAbl
     # Reboot EDL
     if (IsAdbMode)
     {
-        Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Info"
-        & $ADB reboot edl
+        ADB-TO-EDL
     }
     elseif (-not (IsEdlMode))
     {
-        Warning-ADB
-        Warning-ELD
+        Warning-EDL
     }
 
     if (-not (Wait-EdlMode 100))
@@ -234,8 +232,7 @@ function Perform-FastbootUnlock
 
     if (IsAdbMode)
     {
-        Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}bootloader${cReset} mode..." "Info"
-        & $ADB reboot bootloader
+        ADB-TO-FASTBOOT
     }
     elseif (-not (IsFastbootMode))
     {
@@ -424,8 +421,7 @@ function Restore-OriginalAbl
 
     if (IsAdbMode)
     {
-        Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Info"
-        & $ADB reboot edl
+        ADB-TO-EDL
     }
     elseif (-not (IsEdlMode))
     {
@@ -457,8 +453,7 @@ function Perform-FastbootLock
 
     if (IsAdbMode)
     {
-        Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}bootloader${cReset} mode..." "Info"
-        & $ADB reboot bootloader
+        ADB-TO-FASTBOOT
     }
     elseif (-not (IsFastbootMode))
     {

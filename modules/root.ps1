@@ -9,27 +9,14 @@ function Prepare-Magisk
 
     if (IsFastbootMode)
     {
-        Write-Log "Device detected in ${cCyan}Fastboot${cReset} mode." "Warning"
-        Write-Host "Would you like to reboot the device to system? (${cCyan}y${cReset}/n): " -NoNewline
-        $rebootChoice = Read-Host
-        if ($rebootChoice -eq 'y')
-        {
-            Write-Log "Rebooting device to ${cCyan}system${cReset}..." "Action"
-            & $FASTBOOT reboot
-            if (-not (Wait-AdbMode 100))
-            {
-                Write-Log "Device did not connect in ${cCyan}ADB${cReset} mode. Please ensure it has fully booted and ${cYellow}USB debugging${cReset} is enabled." "Error"
-                return
-            }
-        }
-        else
-        {
-            Write-Log "Operation cancelled. Device must be in ${cCyan}ADB${cReset} mode to prepare Magisk." "Warning"
-            return
-        }
+        FASTBOOT-TO-STSTEM
+    }
+    elseif (-not (IsAdbMode))
+    {
+        Warning-ADB
     }
 
-    if (-not (IsAdbMode))
+    if (-not (Wait-AdbMode 100))
     {
         Warning-ADB
         return
@@ -148,8 +135,7 @@ function Flash-Magisk
 
     if (IsAdbMode)
     {
-        Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}bootloader${cReset} mode..." "Info"
-        & $ADB reboot bootloader
+        ADB-TO-FASTBOOT
     }
     elseif (-not (IsFastbootMode))
     {

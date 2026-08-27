@@ -217,12 +217,10 @@ function Backup-Device
     # Reboot EDL
     if (IsAdbMode)
     {
-        Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset}..." "Action"
-        & $ADB reboot edl
+        ADB-TO-EDL
     }
     elseif (-not (IsEdlMode))
     {
-        Warning-ADB
         Warning-EDL
     }
 
@@ -270,12 +268,10 @@ function Restore-Backup
     # Reboot EDL
     if (IsAdbMode)
     {
-        Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset}..." "Action"
-        & $ADB reboot edl
+        ADB-TO-EDL
     }
     elseif (-not (IsEdlMode))
     {
-        Warning-ADB
         Warning-EDL
     }
 

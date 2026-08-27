@@ -81,7 +81,8 @@ function Wait-Continue([string]$Action = "continue...")
 
 function Wait-FastbootMode([int]$Timeout = 100)
 {
-    Write-Log "Waiting for device to enter ${cCyan}fastboot${cReset} mode..." "Info"
+    Write-Host ""
+    Write-Log "Waiting for device to enter ${cCyan}FASTBOOT${cReset} mode..." "Action"
     $deviceDetected = $false
     foreach ($i in 1..$Timeout)
     {
@@ -100,7 +101,8 @@ function Wait-FastbootMode([int]$Timeout = 100)
 
 function Wait-EdlMode([int]$Timeout = 100)
 {
-    Write-Log "Waiting for device to enter ${cCyan}EDL mode (Qualcomm 9008)${cReset}..." "Info"
+    Write-Host ""
+    Write-Log "Waiting for device to enter ${cCyan}EDL${cReset} mode..." "Action"
     $deviceDetected = $false
     foreach ($i in 1..$Timeout)
     {
@@ -120,7 +122,8 @@ function Wait-EdlMode([int]$Timeout = 100)
 
 function Wait-AdbMode([int]$Timeout = 100)
 {
-    Write-Log "Waiting for device to connect in ${cCyan}ADB${cReset} mode..." "Info"
+    Write-Host ""
+    Write-Log "Waiting for device to connect in ${cCyan}ADB${cReset} mode..." "Action"
     $deviceDetected = $false
     foreach ($i in 1..$Timeout)
     {
@@ -148,15 +151,20 @@ function Select-Firehose
 
         $fhChoice = Read-Host "`nSelect an option"
 
-        if ($fhChoice -eq "2")
-        {
-            $script:FirehoseTargetPath = $FirehoseDDR5Path
-            Write-Log "Using Lite Firehose for Pico 4 Pro." "Info"
-        }
-        else
+        if ($fhChoice -in "1", "")
         {
             $script:FirehoseTargetPath = $FirehoseDDR4Path
-            Write-Log "Using standard DDR Firehose." "Info"
+            Write-Log "Using DDR 4 Firehose." "Info"
+        }
+        elseif ($fhChoice -eq "2")
+        {
+            $script:FirehoseTargetPath = $FirehoseDDR5Path
+            Write-Log "Using DDR 5 Firehose." "Info"
+        }
+
+        if (-not $fhChoice)
+        {
+            Wait-Continue
         }
     }
 }
@@ -224,19 +232,44 @@ function Reboot-System
 
 function Warning-ADB
 {
+    Write-Host ""
     Write-Log "Device not detected in ${cCyan}ADB${cReset} mode." "Error"
-    Write-Log "Please connect your device and enable ADB debugging." "Info"
+    Write-Log "Please connect your device and enable USB Debug." "Info"
+    Write-Log "${cYellow}https://knowledge.matts-digital.com/en/virtual-reality/pico/pico-g3/how-to-enable-usb-debugging-on-the-pico-g3/${cReset}" "Info"
 }
 
 function Warning-FASTBOOT
 {
+    Write-Host ""
     Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Error"
-    Write-Log "Please ensure it's connected and in bootloader mode." "Error"
+    Write-Log "Please ensure device connected and in FASTBOOT mode." "Error"
     Write-Host "Manually boot to FASTBOOT by hold ${cYellow}Vol Down + Power${cReset} from off state"
 }
 
 function Warning-EDL
 {
+    Write-Host ""
     Write-Log "Device not detected in EDL mode." "Error"
     Write-Log "Manually boot to EDL by Hold ${cYellow}Vol Up + Vol Down + Power${cReset} from off state." "Info"
+}
+
+function ADB-TO-FASTBOOT
+{
+    Write-Host ""
+    Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Info"
+    & $ADB reboot bootloader
+}
+
+function ADB-TO-EDL
+{
+    Write-Host ""
+    Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Info"
+    & $ADB reboot edl
+}
+
+function FASTBOOT-TO-STSTEM
+{
+    Write-Host ""
+    Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Info"
+    & $FASTBOOT reboot
 }
