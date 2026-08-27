@@ -262,7 +262,7 @@ function Warning-EDL
 {
     Write-Host ""
     Write-Log "Device not detected in EDL mode." "Error"
-    Write-Log "Manually boot to EDL by Hold ${cYellow}Vol Up + Vol Down + Power${cReset} from off state." "Info"
+    Write-Log "Manually boot to EDL by hold ${cYellow}Vol Up + Vol Down + Power${cReset} from off state." "Info"
 }
 
 function ADB-To-Fastboot

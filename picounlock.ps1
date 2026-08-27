@@ -231,6 +231,17 @@ function Perform-FastbootUnlock
 {
     Clear-Host
     Write-Header "Performing Unlock Bootloader"
+    Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to unlock bootloader." "Warning"
+    Write-Log "If bootloader is in ${cRed}Locked${cReset} state, this process will factory reset device data." "Warning"
+    Write-Log "Recommended to do a backup in the main menu." "Warning"
+
+    Write-Host "`nTo proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
+    $rebootConfirmation = Read-Host
+    if ($rebootConfirmation -ne 'YES')
+    {
+        Write-Log "Reboot to FASTBOOT aborted by user. No changes have been made." "Warning"
+        return
+    }
 
     if (IsAdbMode)
     {
@@ -266,6 +277,8 @@ function Perform-FastbootUnlock
     }
 
     Wait-Continue
+    Verify-Unlock
+    Show-UnlockFinalInstructions
 }
 
 function Verify-Unlock
@@ -305,11 +318,15 @@ function Show-UnlockFinalInstructions
     Clear-Host
     Write-Header "Finalizing"
     Write-Log "!!! CRITICAL NEXT STEP !!!" "Warning"
-    Write-Log "It is highly recommended to root your device (${cCyan}Option 4${cReset}) before flashing back your original bootloader (${cYellow}abl${cReset}) from your backup folder (${cCyan}Option 5${cReset})." "Warning"
-    Write-Log "You can flash back your original abl using ${cCyan}Option 5${cReset} in the main menu." "Info"
+    Write-Log "If you want to root the device (${cCyan}Option 4${cReset}), do it before flash backup ABL." "Warning"
     Write-Host ""
+    Write-Log "Check your device screen to confirm the current unlock state." "Info"
     Write-Log "After rebooting, you will likely be prompted to perform a ${cYellow}factory reset${cReset}. This is expected." "Info"
     Write-Log "After the factory reset, your device will boot normally." "Info"
+    Write-Host ""
+    Write-Log "If device does not boot to recovery mode for factory reset, hold ${cYellow}Vol Up + Power${cReset} until the robot shows up." "Warning"
+    Write-Log "In recovery mode, hold ${cYellow}Power${cReset} first then press ${cYellow}Vol Up${cReset} to access the menu." "Warning"
+    Write-Log "Use ${cYellow}Vol Up and Vol Down${cReset} to navigate, and press ${cYellow}Power${cReset} to select ${cCyan}Factory Reset${cReset}." "Warning"
 
     if (-not (Wait-FastbootMode 100))
     {
@@ -447,6 +464,17 @@ function Perform-FastbootLock
 {
     Clear-Host
     Write-Header "Performing Lock Bootloader"
+    Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to unlock bootloader." "Warning"
+    Write-Log "If bootloader is in ${cGreen}Unlocked${cReset} state, this process will factory reset device data." "Warning"
+    Write-Log "Recommended to do a backup in the main menu." "Warning"
+
+    Write-Host "`nTo proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
+    $rebootConfirmation = Read-Host
+    if ($rebootConfirmation -ne 'YES')
+    {
+        Write-Log "Reboot to FASTBOOT aborted by user. No changes have been made." "Warning"
+        return
+    }
 
     if (IsAdbMode)
     {
@@ -495,6 +523,8 @@ function Perform-FastbootLock
     }
 
     Wait-Continue
+    Verify-Lock
+    Show-LockFinalInstructions
 }
 
 function Verify-Lock
@@ -536,6 +566,10 @@ function Show-LockFinalInstructions
     Write-Log "Check your device screen to confirm the current lock state." "Info"
     Write-Log "After rebooting, you will likely be prompted to perform a ${cYellow}factory reset${cReset}. This is expected." "Info"
     Write-Log "After the factory reset, check the bootloader state again in settings or bootloader mode to verify." "Info"
+    Write-Host ""
+    Write-Log "If device does not boot to recovery mode for factory reset, hold ${cYellow}Vol Up + Power${cReset} until the robot shows up." "Warning"
+    Write-Log "In recovery mode, hold ${cYellow}Power${cReset} first then press ${cYellow}Vol Up${cReset} to access the menu." "Warning"
+    Write-Log "Use ${cYellow}Vol Up and Vol Down${cReset} to navigate, and press ${cYellow}Power${cReset} to select ${cCyan}Factory Reset${cReset}." "Warning"
 
     if (-not (Wait-FastbootMode 100))
     {
@@ -594,8 +628,6 @@ try
             }
             "3" {
                 Perform-FastbootUnlock
-                Verify-Unlock
-                Show-UnlockFinalInstructions
             }
             "4" {
                 Show-RootMenu
@@ -605,8 +637,6 @@ try
             }
             "l" {
                 Perform-FastbootLock
-                Verify-Lock
-                Show-LockFinalInstructions
             }
             "r" {
                 Reboot-System
