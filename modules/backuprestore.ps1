@@ -161,12 +161,13 @@ function QFIL-ShowInstructions
     Write-Host "5. Bottom - Storage Type: ${cCyan}ufs${cReset}"
     Write-Host "6. Top Menu - Tools > Partition Manager > OK"
     Write-Host "7. Wait for ${cCyan}'Finish Get GPT'${cReset} in the status box."
-    Write-Log "If status box displays 'Download Fail:Sahara Fail', close QFIL then reboot EDL and try again." "Warning"
+    Write-Log "If status box displays 'Download Fail:Sahara Fail', close QFIL, return here and press Enter, then reboot EDL and try again." "Warning"
     Write-Host "8. In Partition Manager Window > Click ${cGreen}Save Partition File${cReset}"
     Write-Host "9. Wait for ${cCyan}'Finish SavePartitionFile'${cReset} in status box."
     Write-Host "10. Minimize or leave Partition Manager open."
     Write-Host ""
     Write-Log "Once you have saved the partition file, return here and press Enter." "Action"
+    Write-Log "After press Enter, follow the instructions and wait for the process to finish, then select ${cCyan}Q-Quit${cReset}" "Info"
 }
 
 function Post-Steps
@@ -231,7 +232,7 @@ function Select-BackupFolder
     Write-Log "Selected backup folder: ${cCyan}$FlashBackupName${cReset}" "Success"
 
     # Rename the selected backup folder to 'Flash'
-    Write-Log "Renaming folder ${cCyan}'$FlashBackupName'${cReset} to ${cCyan}'Flash${cReset}'..." "Action"
+    Write-Log "Renaming folder ${cCyan}'$FlashBackupName'${cReset} to ${cCyan}'Flash'${cReset}..." "Action"
     Rename-Item -Path $targetBackup.FullName -NewName "Flash"
 
     Write-Log "Flash folder prepared successfully via renaming." "Success"
@@ -254,7 +255,6 @@ function Restore-FlashBackupName
 function Wait-UserConfirm
 {
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to access the userdata partition." "Warning"
-    Write-Log "Userdata will use disk compression. Make sure your PC has enough free space." "Warning"
     Write-Log "This process takes at least ${cGreen}40 minutes${cReset}. High speed ${cGreen}USB 3.0${cReset} is recommended." "Warning"
     Write-Host "To proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
     $confirmation = Read-Host
@@ -312,12 +312,9 @@ function Backup-Device
     Start-QFILHelper "3"
 
     # Stop QFIL
-    try
+    if ($null -ne $qfilProc -and -not $qfilProc.HasExited)
     {
-        Stop-Process -InputObject $qfilProc -ErrorAction SilentlyContinue
-    }
-    catch
-    {
+        Stop-Process -InputObject $qfilProc -Force -ErrorAction SilentlyContinue
     }
 
     # Post-process organization
@@ -359,7 +356,6 @@ function Restore-Backup
     }
 
     QFIL-ShowInstructions
-    Write-Log "After press Enter, wait for process finish and select ${cCyan}Q-Quit${cReset}" "Info"
 
     # Start QFIL to load programmer
     Clean-QualcommAppdata
@@ -377,12 +373,9 @@ function Restore-Backup
     Start-QFILHelper "5"
 
     # Stop QFIL
-    try
+    if ($null -ne $qfilProc -and -not $qfilProc.HasExited)
     {
-        Stop-Process -InputObject $qfilProc -ErrorAction SilentlyContinue
-    }
-    catch
-    {
+        Stop-Process -InputObject $qfilProc -Force -ErrorAction SilentlyContinue
     }
 
     Wait-Continue
