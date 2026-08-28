@@ -76,7 +76,7 @@ Using the engineering ABL can cause issues like slow boot times or the device un
 
 ### EDL Driver Installation
 If the device is not detected in EDL mode (Qualcomm 9008):
-*   Run the provided driver installation script: `.\tools\qdl-driver\install.ps1` as **Administrator**.
+*   Run the provided driver installation script: `.\tools\driver\install.ps1` as **Administrator**.
 *   This will trust the certificate and install the WinUSB driver for the EDL device.
 
 ### USB Connectivity

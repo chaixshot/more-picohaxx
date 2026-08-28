@@ -26,7 +26,7 @@
 
 # --- Script Configuration ---
 $PicoHaxxPyScript = ".\more-picohaxx.py"
-$DRIVER = ".\tools\qdl-driver"
+$DRIVER = ".\tools\driver"
 $Picounlock = ".\picounlock.txt"
 
 $FirehoseDDR4Path = (Get-Item ".\tools\firehoses\prog_firehose_ddr.elf").FullName
@@ -100,8 +100,9 @@ function Check-Prerequisites
     Write-Host ""
 
     # Check for EDL driver and offer to install it
-    $driverInstalled = (pnputil /enum-drivers) -join "`n" -match "qcser\.inf"
-    if (-not $driverInstalled)
+    $targetDrivers = "qcser\.inf|android_winusb\.inf|qcmdm\.inf|qcnet\.inf"
+    $installedDrivers = (pnputil /enum-drivers) -join "`n"
+    if ($installedDrivers -notmatch $targetDrivers)
     {
         Write-Log "The WinUSB driver for ${cCyan}EDL mode (Qualcomm 9008)${cReset} does not appear to be installed." "Warning"
         Write-Log "This is required for flashing the ${cYellow}bootloader${cReset}." "Info"
