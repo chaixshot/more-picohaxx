@@ -257,38 +257,45 @@ function Get-UserdataSizeGB
     return 110 # Default for Pico 4
 }
 
-function Wait-UserConfirm([bool]$CheckDiskSpace)
+function Verify-DiskSpace
 {
-    if ($CheckDiskSpace)
+    $userdataSize = Get-UserdataSizeGB
+    $scriptDriveLetter = Split-Path -Path $PSScriptRoot -Qualifier
+
+    # Strip trailing colon if needed (e.g., "C:" -> "C")
+    $driveName = $scriptDriveLetter.TrimEnd(':')
+    $targetDrive = Get-PSDrive $driveName -ErrorAction SilentlyContinue
+
+    $freeSpaceGB = if ($targetDrive)
     {
-        $userdataSize = Get-UserdataSizeGB
-        $scriptDriveLetter = Split-Path -Path $PSScriptRoot -Qualifier
-
-        # Strip trailing colon if needed (e.g., "C:" -> "C")
-        $driveName = $scriptDriveLetter.TrimEnd(':')
-        $targetDrive = Get-PSDrive $driveName -ErrorAction SilentlyContinue
-
-        $freeSpaceGB = if ($targetDrive)
-        {
-            [math]::Round($targetDrive.Free / 1GB, 2)
-        }
-        else
-        {
-            0
-        }
-
-        Write-Log "Estimated userdata size: ${cGreen}$userdataSize GB${cReset}" "Info"
-        Write-Log "Current disk space (${cCyan}Drive ${driveName}${cReset}): ${cGreen}$freeSpaceGB GB${cReset}" "Info"
-        Write-Host ""
-
-        if ($freeSpaceGB -lt $userdataSize)
-        {
-            Write-Log "Free space on drive ${cCyan}${scriptDriveLetter}${cReset} is less than the estimated userdata size (${cCyan}$userdataSize GB${cReset})!" "Warning"
-            Write-Log "Please ensure you have enough space on drive ${cCyan}${scriptDriveLetter}${cReset} before proceeding." "Warning"
-            Write-Host ""
-        }
+        [math]::Round($targetDrive.Free / 1GB, 2)
+    }
+    else
+    {
+        0
     }
 
+    Write-Log "Estimated userdata size: ${cGreen}$userdataSize GB${cReset}" "Info"
+    Write-Log "Current disk space (${cCyan}Drive ${driveName}${cReset}): ${cGreen}$freeSpaceGB GB${cReset}" "Info"
+
+    if ($freeSpaceGB -lt $userdataSize)
+    {
+        Write-Log "Free space on drive ${cCyan}${scriptDriveLetter}${cReset} is less than the estimated userdata size (${cCyan}$userdataSize GB${cReset})!" "Error"
+        Write-Log "Please ensure you have enough space on drive ${cCyan}${scriptDriveLetter}${cReset} before proceeding." "Error"
+        Wait-Continue
+        return $false
+    }
+    else
+    {
+        Write-Log "Please preserve disk space ${cCyan}${userdataSize} GB${cReset} on drive ${cCyan}${scriptDriveLetter}${cReset} for this process." "Info"
+        Write-Host ""
+
+        return $true
+    }
+}
+
+function Wait-UserConfirm
+{
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to access the userdata partition." "Warning"
     Write-Log "This process takes at least ${cGreen}40 minutes${cReset}. High speed ${cGreen}USB 3.0${cReset} is recommended." "Warning"
     Write-Host "To proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
@@ -305,7 +312,14 @@ function Wait-UserConfirm([bool]$CheckDiskSpace)
 function Backup-Device
 {
     Write-Header "Backup Device"
-    if (-not (Wait-UserConfirm($true))) {
+
+    if (-not (Verify-DiskSpace))
+    {
+        return
+    }
+
+    if (-not (Wait-UserConfirm))
+    {
         return
     }
 
@@ -367,7 +381,8 @@ function Backup-Device
 function Restore-Backup
 {
     Write-Header "Restore Device"
-    if (-not (Wait-UserConfirm($false))) {
+    if (-not (Wait-UserConfirm))
+    {
         return
     }
 
