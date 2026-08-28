@@ -17,6 +17,7 @@ $QFILHelper = Join-Path $ProjectRoot "tools\qpst\QFILHelper.exe"
 $QfilAppdataPath = Join-Path $env:APPDATA "Qualcomm\QFIL"
 
 $BackupPath = Join-Path $ProjectRoot "tools\qpst"
+$FlashBackupName = ""
 $FlashPath = Join-Path $BackupPath "Flash"
 
 function Check-BackupPrerequisites
@@ -130,10 +131,12 @@ function Start-QFILHelper([string]$AutoInput = "")
 
         # Use Push-Location/Pop-Location to run in the correct folder while staying in the same console
         Push-Location $workingDirectory
-        try {
+        try
+        {
             & $executablePath
         }
-        finally {
+        finally
+        {
             Pop-Location
         }
     }
@@ -173,22 +176,6 @@ function Post-Steps
     Write-Log "Your device will not automatically reboot." "Info"
     Write-Log "Hold ${cYellow}Power Button${cReset} for 10 seconds to reboot to system." "Info"
 }
-
-# Ensure target Flash folder exists and clear it
-function Clean-FlashFolder
-{
-    if (Test-Path -Path $FlashPath)
-    {
-        Write-Log "Clearing existing contents in Flash folder: $FlashPath" "Info"
-        Remove-Item -Path "$FlashPath\*" -Recurse -Force -ErrorAction SilentlyContinue
-    }
-    else
-    {
-        Write-Log "Creating Flash folder: $FlashPath" "Info"
-        New-Item -Path $FlashPath -ItemType Directory | Out-Null
-    }
-}
-
 
 function Clean-QualcommAppdata
 {
@@ -233,20 +220,36 @@ function Select-BackupFolder
     }
 
     $targetBackup = $backupFolders[[int]$selection - 1]
-    Write-Log "Selected backup folder: $( $targetBackup.Name )" "Success"
+    $script:FlashBackupName = $targetBackup.Name
 
-    Clean-FlashFolder
+    # Check if a folder named 'Flash' already exists
+    if (Test-Path -Path $FlashPath)
+    {
+        Write-Log "Folder 'Flash' already exists in '$BackupPath'. Please remove or rename it before restoring." "Error"
+        return $null
+    }
 
-    # Copy all files from selected Backup folder to Flash
-    Write-Log "Copying contents from '$( $targetBackup.Name )' to 'Flash'..." "Action"
-    Copy-Item -Path "$( $targetBackup.FullName )\\*" -Destination $FlashPath -Recurse -Force
+    Write-Log "Selected backup folder: $FlashBackupName" "Success"
 
-    Write-Log "Flash folder prepared successfully." "Success"
+    # Rename the selected backup folder to 'Flash'
+    Write-Log "Renaming folder '$FlashBackupName' to 'Flash'..." "Action"
+    Rename-Item -Path $targetBackup.FullName -NewName "Flash"
+
+    Write-Log "Flash folder prepared successfully via renaming." "Success"
     Wait-Continue
 
     return $targetBackup
 }
 
+# Rename Flash back to its original name
+function Restore-FlashBackupName
+{
+    if (Test-Path -Path $FlashPath)
+    {
+        Write-Log "Restoring 'Flash' folder back to '$FlashBackupName'..." "Action"
+        Rename-Item -Path $FlashPath -NewName $FlashBackupName
+    }
+}
 
 function Wait-UserConfirm
 {
@@ -376,7 +379,6 @@ function Restore-Backup
     {
     }
 
-    Clean-FlashFolder
     Wait-Continue
 }
 
@@ -410,6 +412,7 @@ function Show-BackupRestoreMenu
                 if (Select-BackupFolder)
                 {
                     Restore-Backup
+                    Restore-FlashBackupName
                     Post-Steps
                 }
             }
