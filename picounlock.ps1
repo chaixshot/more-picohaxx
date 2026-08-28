@@ -369,7 +369,7 @@ function Get-LatestBackupPath
                 for ($i = 0; $i -lt $folders.Count; $i++) {
                     Write-Host " [${cCyan}$i${cReset}] $( $folders[$i].Name )"
                 }
-                Write-Host "`nSelect a backup folder (enter index or folder name, default [${cCyan}0${cReset}] for latest, '${cYellow}c${cReset}' to cancel): " -NoNewline
+                Write-Host "`nSelect a backup folder (enter index or folder name, default [${cCyan}0${cReset}] for latest, [${cYellow}c${cReset}] to cancel): " -NoNewline
                 $selection = Read-Host
 
                 if ( [string]::IsNullOrWhiteSpace($selection))
@@ -399,7 +399,7 @@ function Get-LatestBackupPath
                 if (-not $selectedFolder)
                 {
                     Clear-Host
-                    Write-Log "Invalid selection '$selection'. Please try again or type 'c' to cancel." "Warning"
+                    Write-Log "Invalid selection '$selection'. Please try again or type '${cCyan}c${cReset}' to cancel." "Warning"
                 }
             }
             return Join-Path -Path $selectedFolder.FullName -ChildPath $FileName

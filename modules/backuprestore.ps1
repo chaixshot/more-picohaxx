@@ -181,7 +181,6 @@ function Clean-QualcommAppdata
 {
     if (Test-Path -Path $QfilAppdataPath)
     {
-        Write-Log "Cleaning QFIL AppData folder: $QfilAppdataPath" "Info"
         Remove-Item -Path "$QfilAppdataPath\*" -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
@@ -205,7 +204,7 @@ function Select-BackupFolder
         Write-Host " [${cCyan}$( $i + 1 )${cReset}] $( $backupFolders[$i].Name ) ${cGreen}($( $backupFolders[$i].CreationTime ))${cReset}"
     }
 
-    $selection = Read-Host "`nSelect a backup folder [${cCyan}1-$( $backupFolders.Count )${cReset}], 'c' to cancel"
+    $selection = Read-Host "`nSelect a backup folder [${cCyan}1-$( $backupFolders.Count )${cReset}], [${cCyan}c${cReset}] to cancel"
 
     if ($selection -eq 'c')
     {
@@ -229,10 +228,10 @@ function Select-BackupFolder
         return $null
     }
 
-    Write-Log "Selected backup folder: $FlashBackupName" "Success"
+    Write-Log "Selected backup folder: ${cCyan}$FlashBackupName${cReset}" "Success"
 
     # Rename the selected backup folder to 'Flash'
-    Write-Log "Renaming folder '$FlashBackupName' to 'Flash'..." "Action"
+    Write-Log "Renaming folder ${cCyan}'$FlashBackupName'${cReset} to ${cCyan}'Flash${cReset}'..." "Action"
     Rename-Item -Path $targetBackup.FullName -NewName "Flash"
 
     Write-Log "Flash folder prepared successfully via renaming." "Success"
@@ -246,8 +245,9 @@ function Restore-FlashBackupName
 {
     if (Test-Path -Path $FlashPath)
     {
-        Write-Log "Restoring 'Flash' folder back to '$FlashBackupName'..." "Action"
+        Write-Log "Restoring ${cCyan}'Flash'${cReset} folder back to ${cCyan}'$FlashBackupName'${cReset}..." "Action"
         Rename-Item -Path $FlashPath -NewName $FlashBackupName
+        Wait-Continue
     }
 }
 
@@ -255,21 +255,25 @@ function Wait-UserConfirm
 {
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to access the userdata partition." "Warning"
     Write-Log "Userdata will use disk compression. Make sure your PC has enough free space." "Warning"
-    Write-Log "This process takes at least 40 minutes. USB 3.0 (High Speed) is recommended." "Warning"
+    Write-Log "This process takes at least ${cGreen}40 minutes${cReset}. High speed ${cGreen}USB 3.0${cReset} is recommended." "Warning"
     Write-Host "To proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
     $confirmation = Read-Host
     if ($confirmation -ne 'YES')
     {
         Write-Log "Reboot to EDL aborted by user. No changes have been made." "Warning"
-        return
+        return $false
     }
+
+    return $true
 }
 
 function Backup-Device
 {
     Clear-Host
     Write-Header "Backup Device"
-    Wait-UserConfirm
+    if (-not (Wait-UserConfirm)) {
+        return
+    }
 
     # Reboot EDL
     if (IsAdbMode)
@@ -334,7 +338,9 @@ function Restore-Backup
 {
     Clear-Host
     Write-Header "Restore Device"
-    Wait-UserConfirm
+    if (-not (Wait-UserConfirm)) {
+        return
+    }
 
     # Reboot EDL
     if (IsAdbMode)
