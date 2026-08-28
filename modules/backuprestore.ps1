@@ -158,7 +158,7 @@ function QFIL-ShowInstructions
     Write-Host "5. Bottom - Storage Type: ${cCyan}ufs${cReset}"
     Write-Host "6. Top Menu - Tools > Partition Manager > OK"
     Write-Host "7. Wait for ${cCyan}'Finish Get GPT'${cReset} in the status box."
-    Write-Log "If status box displays 'Download Fail:Sahara Fail', reboot EDL and try again." "Warning"
+    Write-Log "If status box displays 'Download Fail:Sahara Fail', close QFIL then reboot EDL and try again." "Warning"
     Write-Host "8. In Partition Manager Window > Click ${cGreen}Save Partition File${cReset}"
     Write-Host "9. Wait for ${cCyan}'Finish SavePartitionFile'${cReset} in status box."
     Write-Host "10. Minimize or leave Partition Manager open."
@@ -292,13 +292,26 @@ function Backup-Device
     # Start QFIL
     Clean-QualcommAppdata
     $qfilProc = Start-Process -FilePath $QFILPath -PassThru
-    Wait-Continue "launch QFILHelper and start partition backup..."
+    Wait-Continue "start userdata backup..."
+
+    if (-not $qfilProc -or $qfilProc.HasExited)
+    {
+        Write-Log "QFIL is not running. Exiting process..." "Error"
+        Wait-Continue
+        return
+    }
 
     # Start the automated helper
     Start-QFILHelper "3"
 
     # Stop QFIL
-    Stop-Process -InputObject $qfilProc -ErrorAction SilentlyContinue
+    try
+    {
+        Stop-Process -InputObject $qfilProc -ErrorAction SilentlyContinue
+    }
+    catch
+    {
+    }
 
     # Post-process organization
     $newBackup = Get-ChildItem -Path $BackupPath -Directory -Filter "Backup-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
@@ -339,16 +352,29 @@ function Restore-Backup
     QFIL-ShowInstructions
     Write-Log "After press Enter, wait for process finish and select ${cCyan}Q-Quit${cReset}" "Info"
 
-    # Start QFIL
+    # Start QFIL to load programmer
     Clean-QualcommAppdata
     $qfilProc = Start-Process -FilePath $QFILPath -PassThru
-    Wait-Continue "launch QFILHelper and start partition backup..."
+    Wait-Continue "start restore userdata..."
+
+    if (-not $qfilProc -or $qfilProc.HasExited)
+    {
+        Write-Log "QFIL is not running. Exiting process..." "Error"
+        Wait-Continue
+        return
+    }
 
     # Start the automated helper
     Start-QFILHelper "5"
 
     # Stop QFIL
-    Stop-Process -InputObject $qfilProc -ErrorAction SilentlyContinue
+    try
+    {
+        Stop-Process -InputObject $qfilProc -ErrorAction SilentlyContinue
+    }
+    catch
+    {
+    }
 
     Clean-FlashFolder
     Wait-Continue
