@@ -99,20 +99,43 @@ function Get-QualcommCOMPort
     return $null
 }
 
-function Start-QFILHelper
+function Start-QFILHelper([string]$AutoInput = "")
 {
     if (Test-Path -Path $QFILHelper)
     {
         $qfilHelperFile = Get-Item -Path $QFILHelper
         $executablePath = $qfilHelperFile.FullName
         $workingDirectory = $qfilHelperFile.DirectoryName
-        # Run QFILHelper in the current window and wait
-        Start-Process -FilePath $executablePath -WorkingDirectory $workingDirectory -NoNewWindow -Wait
-    }
-    else
-    {
-        Write-Log "QFILHelper.exe was not found at: $QFILHelper" "Error"
-        return
+
+        # Ensure the 'Errors' folder exists inside the working directory
+        $errorsFolderPath = Join-Path -Path $workingDirectory -ChildPath "Errors"
+        if (-not (Test-Path -Path $errorsFolderPath))
+        {
+            New-Item -Path $errorsFolderPath -ItemType Directory | Out-Null
+        }
+
+        if (-not [string]::IsNullOrEmpty($AutoInput))
+        {
+            Write-Log "Sending automated key '$AutoInput' to console..." "Action"
+
+            # Start a background job to push the key into the console's input buffer
+            $scriptBlock = {
+                param($Key)
+                Start-Sleep -Seconds 0.5
+                $wshell = New-Object -ComObject WScript.Shell
+                $wshell.SendKeys($Key)
+            }
+            Start-Job -ScriptBlock $scriptBlock -ArgumentList $AutoInput | Out-Null
+        }
+
+        # Use Push-Location/Pop-Location to run in the correct folder while staying in the same console
+        Push-Location $workingDirectory
+        try {
+            & $executablePath
+        }
+        finally {
+            Pop-Location
+        }
     }
 }
 
@@ -248,9 +271,7 @@ function Backup-Device
     $latestBackup = Get-ChildItem -Path $BackupPath -Directory -Filter "Backup-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
     QFIL-ShowInstructions
-    Write-Log "After press Enter, select ${cCyan}1-Full backup (LUN mode)${cReset}" "Info"
-    Write-Log "Wait for process finish select ${cCyan}Q-Quit${cReset}" "Info"
-
+    Write-Log "After press Enter, wait for process finish and select ${cCyan}Q-Quit${cReset}" "Info"
 
     # Start QFIL
     Clean-QualcommAppdata
@@ -258,7 +279,7 @@ function Backup-Device
     Wait-Continue "launch QFILHelper and start partition backup..."
 
     # Start the automated helper
-    Start-QFILHelper
+    Start-QFILHelper "3"
 
     # Stop QFIL
     Stop-Process -InputObject $qfilProc -ErrorAction SilentlyContinue
@@ -299,9 +320,7 @@ function Restore-Backup
     }
 
     QFIL-ShowInstructions
-    Write-Log "After press Enter, select ${cCyan}5-Flash files${cReset}" "Info"
-    Write-Log "Wait for process finish select ${cCyan}Q-Quit${cReset}" "Info"
-
+    Write-Log "After press Enter, wait for process finish and select ${cCyan}Q-Quit${cReset}" "Info"
 
     # Start QFIL
     Clean-QualcommAppdata
@@ -309,7 +328,7 @@ function Restore-Backup
     Wait-Continue "launch QFILHelper and start partition backup..."
 
     # Start the automated helper
-    Start-QFILHelper
+    Start-QFILHelper "5"
 
     # Stop QFIL
     Stop-Process -InputObject $qfilProc -ErrorAction SilentlyContinue
