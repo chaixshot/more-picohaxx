@@ -28,6 +28,7 @@
 $PicoHaxxPyScript = ".\more-picohaxx.py"
 $DRIVER = ".\tools\driver"
 $Picounlock = ".\picounlock.txt"
+$LogsPath = ".\logs"
 
 $FirehoseDDR4Path = (Get-Item ".\tools\firehoses\prog_firehose_ddr.elf").FullName
 $FirehoseDDR5Path = (Get-Item ".\tools\firehoses\prog_firehose_lite.elf").FullName
@@ -585,11 +586,11 @@ function Show-LockFinalInstructions
 # --- Main Script Execution ---
 
 $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-if (-not (Test-Path ".\logs"))
+if (-not (Test-Path $LogsPath ))
 {
-    New-Item -ItemType Directory -Path ".\logs" | Out-Null
+    New-Item -ItemType Directory -Path $LogsPath  | Out-Null
 }
-Start-Transcript -Path ".\logs\$timestamp.log" -Append
+Start-Transcript -Path "$LogsPath\$timestamp.log" -Append
 
 try
 {
