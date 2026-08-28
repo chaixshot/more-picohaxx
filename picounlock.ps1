@@ -328,7 +328,7 @@ function Show-UnlockFinalInstructions
     Write-Host ""
     Write-Log "If device does not boot to recovery mode for factory reset, hold ${cYellow}Vol Up + Power${cReset} until the robot shows up." "Warning"
     Write-Log "In recovery mode, hold ${cYellow}Power${cReset} first then press ${cYellow}Vol Up${cReset} to access the menu." "Warning"
-    Write-Log "Use ${cYellow}Vol Up and Vol Down${cReset} to navigate, and press ${cYellow}Power${cReset} to select ${cCyan}Factory Reset${cReset}." "Warning"
+    Write-Log "Use ${cYellow}Vol Up and Vol Down${cReset} to navigate, and press ${cYellow}Power${cReset} to select ${cCyan}Wipe data/factory reset${cReset}." "Warning"
 
     if (-not (Wait-FastbootMode 100))
     {
@@ -665,5 +665,6 @@ catch
 }
 finally
 {
-    Stop-Transcript
+    try { Stop-Transcript } catch {}
+    try { Restore-FlashBackupName } catch {}
 }
