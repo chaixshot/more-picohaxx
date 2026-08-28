@@ -17,6 +17,7 @@ $QFILHelper = Join-Path $ProjectRoot "tools\qpst\QFILHelper.exe"
 $QfilAppdataPath = Join-Path $env:APPDATA "Qualcomm\QFIL"
 
 $BackupPath = Join-Path $ProjectRoot "tools\qpst"
+$TMPPath = Join-Path $ProjectRoot "tools\qpst\TMP"
 $FlashBackupName = ""
 $FlashPath = Join-Path $BackupPath "Flash"
 
@@ -309,6 +310,50 @@ function Wait-UserConfirm
     return $true
 }
 
+function Test-BackupSuccess([string]$FolderPath)
+{
+    $requiredFiles = @(
+        "lun0_gpt_header.bin",
+        "lun0_userdata.bin",
+        "lun1_gpt_header.bin",
+        "lun2_gpt_header.bin",
+        "lun3_gpt_header.bin",
+        "lun4_gpt_header.bin",
+        "lun5_gpt_header.bin",
+        "lun6_gpt_header.bin"
+    )
+
+    $allFilesExist = $true
+    foreach ($file in $requiredFiles)
+    {
+        if (-not (Test-Path -Path (Join-Path $FolderPath $file)))
+        {
+            Write-Log "Missing required backup file: ${cYellow}$file${cReset}" "Error"
+            $allFilesExist = $false
+        }
+    }
+
+    if (-not $allFilesExist)
+    {
+        Write-Log "Backup verification failed: one or more files are missing." "Error"
+        return $false
+    }
+
+    $folderSize = (Get-ChildItem -Path $FolderPath -Recurse | Measure-Object -Property Length -Sum).Sum
+    $sizeGB = $folderSize / 1GB
+
+    if ($sizeGB -le 10)
+    {
+        $sizeFormatted = "{0:N2}" -f $sizeGB
+        Write-Log "Backup verification failed: total folder size (${cYellow}$sizeFormatted GB${cReset}) is not greater than 10GB." "Error"
+        return $false
+    }
+
+    $sizeFormatted = "{0:N2}" -f $sizeGB
+    Write-Log "Backup verification successful! Total size: ${cGreen}$sizeFormatted GB${cReset}" "Success"
+    return $true
+}
+
 function Backup-Device
 {
     Write-Header "Backup Device"
@@ -339,8 +384,6 @@ function Backup-Device
         return
     }
 
-    $latestBackup = Get-ChildItem -Path $BackupPath -Directory -Filter "Backup-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-
     QFIL-ShowInstructions
 
     # Start QFIL
@@ -366,14 +409,24 @@ function Backup-Device
 
     # Post-process organization
     $newBackup = Get-ChildItem -Path $BackupPath -Directory -Filter "Backup-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    if ($null -eq $latestBackup -or $latestBackup.FullName -ne $newBackup.FullName)
+
+    if (-not $newBackup)
     {
-        Write-Log "Detected new backup at: ${cCyan}$( $newBackup.FullName )${cReset}" "Success"
+        Write-Log "Could not automatically find the backup folder in $BackupPath." "Warning"
+    }
+    elseif (Test-BackupSuccess -FolderPath $newBackup.FullName)
+    {
+        Write-Log "Detected new backup at: ${cCyan}$($newBackup.FullName)${cReset}" "Success"
     }
     else
     {
-        Write-Log "Could not automatically find the backup folder in tools\qpst." "Warning"
+        Write-Log "Found backup folder at '${cCyan}$($newBackup.FullName)${cReset}', but validation failed." "Error"
+        Write-Log "Deleting invalid backup folder..." "Action"
+        Remove-Item -Path $newBackup.FullName -Recurse -Force -ErrorAction Stop
     }
+
+    Write-Log "Deleting TMP folder..." "Action"
+    Remove-Item -Path $TMPPath -Recurse -Force -ErrorAction Stop
 
     Wait-Continue
 }
