@@ -14,6 +14,7 @@ $ProjectRoot = Split-Path -Path $PSScriptRoot -Parent
 $QPSTInstaller = Join-Path $ProjectRoot "tools\qpst\QPST Tool v2.7.496.exe"
 $QFILPath = "${env:ProgramFiles(x86)}\Qualcomm\QPST\bin\QFIL.exe"
 $QFILHelper = Join-Path $ProjectRoot "tools\qpst\QFILHelper.exe"
+$QfilAppdataPath = Join-Path $env:APPDATA "Qualcomm\QFIL"
 
 $BackupPath = Join-Path $ProjectRoot "tools\qpst"
 $FlashPath = Join-Path $BackupPath "Flash"
@@ -165,6 +166,16 @@ function Clean-FlashFolder
     }
 }
 
+
+function Clean-QualcommAppdata
+{
+    if (Test-Path -Path $QfilAppdataPath)
+    {
+        Write-Log "Cleaning QFIL AppData folder: $QfilAppdataPath" "Info"
+        Remove-Item -Path "$QfilAppdataPath\*" -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Select-BackupFolder
 {
     Clear-Host
@@ -240,7 +251,9 @@ function Backup-Device
     Write-Log "After press Enter, select ${cCyan}1-Full backup (LUN mode)${cReset}" "Info"
     Write-Log "Wait for process finish select ${cCyan}Q-Quit${cReset}" "Info"
 
+
     # Start QFIL
+    Clean-QualcommAppdata
     $qfilProc = Start-Process -FilePath $QFILPath -PassThru
     Wait-Continue "launch QFILHelper and start partition backup..."
 
@@ -289,7 +302,9 @@ function Restore-Backup
     Write-Log "After press Enter, select ${cCyan}5-Flash files${cReset}" "Info"
     Write-Log "Wait for process finish select ${cCyan}Q-Quit${cReset}" "Info"
 
+
     # Start QFIL
+    Clean-QualcommAppdata
     $qfilProc = Start-Process -FilePath $QFILPath -PassThru
     Wait-Continue "launch QFILHelper and start partition backup..."
 
