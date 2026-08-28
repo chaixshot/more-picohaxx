@@ -205,40 +205,80 @@ fastboot flashing unlock_critical
     return $unlockCommand
 }
 
-function Reboot-System
+function Perform-Reboot
 {
     Clear-Host
-    Write-Header "Rebooting to System"
+    Write-Header "Reboot Selection"
+    Write-Host " [${cCyan}1${cReset}] Boot to SYSTEM"
+    Write-Host " [${cCyan}2${cReset}] Boot to FASTBOOT"
+    Write-Host " [${cCyan}3${cReset}] Boot to recovery"
+    if(-not (IsFastbootMode))
+    {
+        Write-Host " [${cCyan}4${cReset}] Boot to EDL"
+    }
+    Write-Host ""
 
     if (IsFastbootMode)
     {
-        Write-Log "Device detected in ${cCyan}Fastboot${cReset} mode. Rebooting to ${cCyan}system${cReset}..." "Action"
-        & $FASTBOOT reboot
-        if ($LASTEXITCODE -eq 0)
+        Write-Host "Device detected: ${cCyan}FASTBOOT${cReset}"
+    }
+    elseif (IsAdbMode)
+    {
+        Write-Host "Device detected: ${cGreen}ADB${cReset}"
+    }
+    elseif (IsEdlMode)
+    {
+        Write-Log "Device is detected in ${cCyan}EDL${cReset} mode." "Warning"
+        Write-Log "Manually reboot by hold ${cYellow}Power${cReset}." "Info"
+        return
+    }
+    else
+    {
+        Write-Log "No device detected." "Error"
+        Write-Log "Please connect your device and ensure it is powered on." "Info"
+        return
+    }
+
+    $choice = Read-Host "Select an option"
+
+    if (IsFastbootMode)
+    {
+        if ($choice -in "1", "")
         {
-            Write-Log "Reboot command sent successfully." "Success"
+            Fastboot-To-System
         }
-        else
+        elseif ($choice -eq "2")
         {
-            Write-Log "Failed to execute fastboot reboot." "Error"
+            Fastboot-To-Fastboot
+        }
+        elseif ($choice -eq "3")
+        {
+            Fastboot-To-Recovery
+        }
+        elseif ($choice -eq "4")
+        {
+            Write-Log "Device is detected in ${cCyan}FASTBOOT${cReset} mode." "Warning"
+            Write-Log "Unable to reboot to EDL." "Error"
         }
     }
     elseif (IsAdbMode)
     {
-        ADB-To-System
-
-        if ($LASTEXITCODE -eq 0)
+        if ($choice -in "1", "")
         {
-            Write-Log "Reboot command sent successfully." "Success"
+            ADB-To-System
         }
-        else
+        elseif ($choice -eq "2")
         {
-            Write-Log "Failed to execute adb reboot." "Error"
+            ADB-To-Fastboot
         }
-    }
-    else
-    {
-        Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} or ${cCyan}ADB${cReset} mode. Please connect your device and ensure it is powered on." "Warning"
+        elseif ($choice -eq "3")
+        {
+            ADB-To-Recovery
+        }
+        elseif ($choice -eq "4")
+        {
+            ADB-To-Edl
+        }
     }
 }
 
@@ -255,7 +295,7 @@ function Warning-FASTBOOT
     Write-Host ""
     Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Error"
     Write-Log "Please ensure device connected and in FASTBOOT mode." "Error"
-    Write-Host "Manually boot to FASTBOOT by hold ${cYellow}Vol Down + Power${cReset} from off state"
+    Write-Host "Manually boot to FASTBOOT by hold ${cYellow}Vol Down + Power${cReset} from off state."
 }
 
 function Warning-EDL
@@ -265,6 +305,13 @@ function Warning-EDL
     Write-Log "Manually boot to EDL by hold ${cYellow}Vol Up + Vol Down + Power${cReset} from off state." "Info"
 }
 
+function ADB-To-System
+{
+    Write-Host ""
+    Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Info"
+    & $ADB reboot
+}
+
 function ADB-To-Fastboot
 {
     Write-Host ""
@@ -272,18 +319,18 @@ function ADB-To-Fastboot
     & $ADB reboot bootloader
 }
 
+function ADB-To-Recovery
+{
+    Write-Host ""
+    Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}RECOVERY${cReset} mode..." "Info"
+    & $ADB reboot recovery
+}
+
 function ADB-To-Edl
 {
     Write-Host ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Info"
     & $ADB reboot edl
-}
-
-function ADB-To-System
-{
-    Write-Host ""
-    Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Info"
-    & $ADB reboot
 }
 
 function Fastboot-To-System
@@ -298,4 +345,11 @@ function Fastboot-To-Fastboot
     Write-Host ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Info"
     & $FASTBOOT reboot bootloader
+}
+
+function Fastboot-To-Recovery
+{
+    Write-Host ""
+    Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}RECOVERY${cReset} mode..." "Info"
+    & $FASTBOOT reboot recovery
 }

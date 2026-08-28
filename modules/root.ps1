@@ -263,7 +263,7 @@ function Show-RootMenu
         Write-Host " [${cCyan}1${cReset}] Prepare Magisk ${cDarkGray}(Install APK & Firmware link)${cReset}"
         Write-Host " [${cCyan}2${cReset}] Flash Magisk ${cDarkGray}(Fastboot)${cReset}"
         Write-Host ""
-        Write-Host " [${cCyan}r${cReset}] Reboot to System"
+        Write-Host " [${cCyan}r${cReset}] Reboot"
         Write-Host " [${cCyan}0${cReset}] Back to Main Menu"
 
         $choice = Read-Host "`nSelect an option"
@@ -277,7 +277,7 @@ function Show-RootMenu
                 Flash-Magisk
             }
             "r" {
-                Reboot-System
+                Perform-Reboot
             }
             "0" {
                 $rootQuit = $true

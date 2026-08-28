@@ -403,7 +403,7 @@ function Show-BackupRestoreMenu
         Write-Host " [${cCyan}1${cReset}] Backup Device"
         Write-Host " [${cCyan}2${cReset}] Restore Device"
         Write-Host ""
-        Write-Host " [${cCyan}r${cReset}] Reboot to System"
+        Write-Host " [${cCyan}r${cReset}] Reboot"
         Write-Host " [${cCyan}0${cReset}] Back to Main Menu"
 
         $choice = Read-Host "`nSelect an option"
@@ -423,7 +423,7 @@ function Show-BackupRestoreMenu
                 }
             }
             "r" {
-                Reboot-System
+                Perform-Reboot
             }
             "0" {
                 $menuQuit = $true

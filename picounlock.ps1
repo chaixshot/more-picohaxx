@@ -613,7 +613,7 @@ try
         Write-Host " [${cCyan}5${cReset}] Flash backup ABL (Fix slow boot, fix boot into EDL)"
         Write-Host ""
         Write-Host " [${cCyan}l${cReset}] Lock bootloader"
-        Write-Host " [${cCyan}r${cReset}] Reboot to System"
+        Write-Host " [${cCyan}r${cReset}] Reboot"
         Write-Host " [${cCyan}b${cReset}] Backup/Resotre"
         Write-Host " [${cCyan}0${cReset}] Exit"
 
@@ -640,7 +640,7 @@ try
                 Perform-FastbootLock
             }
             "r" {
-                Reboot-System
+                Perform-Reboot
             }
             "b" {
                 Show-BackupRestoreMenu
