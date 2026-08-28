@@ -125,7 +125,7 @@ function Wait-FastbootMode([int]$Timeout = 100)
     Write-Host ""
     Write-Log "Waiting for device to enter ${cCyan}FASTBOOT${cReset} mode..." "Action"
     $deviceDetected = $false
-    foreach ($i in 1..$Timeout)
+    for ($i = 1; $i -le $Timeout; $i++)
     {
         if (IsFastbootMode)
         {
@@ -133,8 +133,25 @@ function Wait-FastbootMode([int]$Timeout = 100)
             $deviceDetected = $true
             break
         }
-        Write-Host "`r  ...waiting ($i/$Timeout) " -NoNewline
-        Start-Sleep -Seconds 1
+
+        Write-Host "`r  ...waiting ($i/$Timeout) [${cCyan}ESC to skip${cReset}] " -NoNewline
+
+        $skipped = $false
+        for ($j = 0; $j -lt 10; $j++)
+        {
+            if ([System.Console]::KeyAvailable)
+            {
+                $key = [System.Console]::ReadKey($true)
+                if ($key.Key -eq "Escape")
+                {
+                    Write-Host "`r  Skipped by user.                                         " -ForegroundColor Yellow
+                    $skipped = $true
+                    break
+                }
+            }
+            Start-Sleep -Milliseconds 100
+        }
+        if ($skipped) { break }
     }
     Write-Host ""
     return $deviceDetected
@@ -145,7 +162,7 @@ function Wait-EdlMode([int]$Timeout = 100)
     Write-Host ""
     Write-Log "Waiting for device to enter ${cCyan}EDL${cReset} mode..." "Action"
     $deviceDetected = $false
-    foreach ($i in 1..$Timeout)
+    for ($i = 1; $i -le $Timeout; $i++)
     {
         if (IsEdlMode)
         {
@@ -154,8 +171,25 @@ function Wait-EdlMode([int]$Timeout = 100)
             $deviceDetected = $true
             break
         }
-        Write-Host "`r  ...waiting ($i/$Timeout) " -NoNewline
-        Start-Sleep -Seconds 1
+
+        Write-Host "`r  ...waiting ($i/$Timeout) [${cCyan}ESC to skip${cReset}] " -NoNewline
+
+        $skipped = $false
+        for ($j = 0; $j -lt 10; $j++)
+        {
+            if ([System.Console]::KeyAvailable)
+            {
+                $key = [System.Console]::ReadKey($true)
+                if ($key.Key -eq "Escape")
+                {
+                    Write-Host "`r  Skipped by user.                                         " -ForegroundColor Yellow
+                    $skipped = $true
+                    break
+                }
+            }
+            Start-Sleep -Milliseconds 100
+        }
+        if ($skipped) { break }
     }
     Write-Host ""
     return $deviceDetected
@@ -166,7 +200,7 @@ function Wait-AdbMode([int]$Timeout = 100)
     Write-Host ""
     Write-Log "Waiting for device to connect in ${cCyan}ADB${cReset} mode..." "Action"
     $deviceDetected = $false
-    foreach ($i in 1..$Timeout)
+    for ($i = 1; $i -le $Timeout; $i++)
     {
         if (IsAdbMode)
         {
@@ -174,8 +208,25 @@ function Wait-AdbMode([int]$Timeout = 100)
             $deviceDetected = $true
             break
         }
-        Write-Host "`r  ...waiting for device to boot ($i/$Timeout) " -NoNewline
-        Start-Sleep -Seconds 1
+
+        Write-Host "`r  ...waiting ($i/$Timeout) [${cCyan}ESC to skip${cReset}] " -NoNewline
+
+        $skipped = $false
+        for ($j = 0; $j -lt 10; $j++)
+        {
+            if ([System.Console]::KeyAvailable)
+            {
+                $key = [System.Console]::ReadKey($true)
+                if ($key.Key -eq "Escape")
+                {
+                    Write-Host "`r  Skipped by user.                                         " -ForegroundColor Yellow
+                    $skipped = $true
+                    break
+                }
+            }
+            Start-Sleep -Milliseconds 100
+        }
+        if ($skipped) { break }
     }
     Write-Host ""
     return $deviceDetected
