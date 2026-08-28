@@ -655,7 +655,7 @@ catch
 }
 finally
 {
-    Write-Header
+    Write-Header "Exited"
 
     try { Stop-Transcript } catch {}
     try { Clean-LogFormat -LogFile $LogFile } catch {}

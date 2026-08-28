@@ -99,7 +99,7 @@ function Get-QualcommCOMPort
     return $null
 }
 
-function Start-QFILHelper([string]$AutoInput = "")
+function Start-QFILHelper([string]$menuID = "")
 {
     if (Test-Path -Path $QFILHelper)
     {
@@ -107,37 +107,17 @@ function Start-QFILHelper([string]$AutoInput = "")
         $executablePath = $qfilHelperFile.FullName
         $workingDirectory = $qfilHelperFile.DirectoryName
 
-        # Ensure the 'Errors' folder exists inside the working directory
-        $errorsFolderPath = Join-Path -Path $workingDirectory -ChildPath "Errors"
-        if (-not (Test-Path -Path $errorsFolderPath))
-        {
-            New-Item -Path $errorsFolderPath -ItemType Directory | Out-Null
-        }
+        # Build argument list dynamically
+        $argumentList = @()
+        $argumentList += "-menu $menuID"
 
-        if (-not [string]::IsNullOrEmpty($AutoInput))
-        {
-            Write-Log "Sending automated key '$AutoInput' to console..." "Action"
-
-            # Start a background job to push the key into the console's input buffer
-            $scriptBlock = {
-                param($Key)
-                Start-Sleep -Seconds 0.5
-                $wshell = New-Object -ComObject WScript.Shell
-                $wshell.SendKeys($Key)
-            }
-            Start-Job -ScriptBlock $scriptBlock -ArgumentList $AutoInput | Out-Null
-        }
-
-        # Use Push-Location/Pop-Location to run in the correct folder while staying in the same console
-        Push-Location $workingDirectory
-        try
-        {
-            & $executablePath
-        }
-        finally
-        {
-            Pop-Location
-        }
+        # Run QFILHelper in the current window and wait
+        Start-Process -FilePath $executablePath -ArgumentList $argumentList -WorkingDirectory $workingDirectory -NoNewWindow -Wait
+    }
+    else
+    {
+        Write-Log "QFILHelper.exe was not found at: $QFILHelper" "Error"
+        return
     }
 }
 
@@ -165,7 +145,10 @@ function QFIL-ShowInstructions
     Write-Host "10. Minimize or leave Partition Manager open."
     Write-Host ""
     Write-Log "Once you have saved the partition file, return here and press Enter." "Action"
-    Write-Log "After press Enter, follow the instructions and wait for the process to finish, then select ${cCyan}Q-Quit${cReset}" "Info"
+    Write-Log "When process is done, you will hear the beep sound." "Info"
+
+    [Console]::Beep(523, 150) # C5 tone for 150ms
+    [Console]::Beep(784, 300) # G5 tone for 300ms
 }
 
 function Post-Steps
@@ -302,7 +285,6 @@ function Wait-UserConfirm([bool]$CheckDiskSpace)
         {
             Write-Log "Free space on drive ${cCyan}${scriptDriveLetter}${cReset} is less than the estimated userdata size (${cCyan}$userdataSize GB${cReset})!" "Warning"
             Write-Log "Please ensure you have enough space on drive ${cCyan}${scriptDriveLetter}${cReset} before proceeding." "Warning"
-            Write-Log "This process uses disk compression, so it may still fit within the available disk space." "Info"
             Write-Host ""
         }
     }
