@@ -90,7 +90,7 @@ If the device is not detected in EDL mode (Qualcomm 9008):
 ## Credits
 *   **[typlo](https://github.com/264312431)**: For finding this bypass method and the previous root exploit.
 *   **[Fallen Angel](https://github.com/FallenAngel-PP)**: Fearless testing and validation.
-*   **[QFILHelper](https://github.com/Beliathal/QFILHelper)**: Automation QFIL flash management.
+*   **[QFILHelper](https://github.com/chaixshot/QFILHelper)**: Automation QFIL flash management.
 
 ---
 *For more technical details on the bypass mechanism, refer to the comments in `more-picohaxx.py`.*
