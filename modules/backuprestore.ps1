@@ -247,10 +247,26 @@ function Select-BackupFolder
     return $targetBackup
 }
 
+
+function Wait-UserConfirm
+{
+    Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to access the userdata partition." "Warning"
+    Write-Log "Userdata will use disk compression. Make sure your PC has enough free space." "Warning"
+    Write-Log "This process takes at least 40 minutes. USB 3.0 (High Speed) is recommended." "Warning"
+    Write-Host "To proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
+    $confirmation = Read-Host
+    if ($confirmation -ne 'YES')
+    {
+        Write-Log "Reboot to EDL aborted by user. No changes have been made." "Warning"
+        return
+    }
+}
+
 function Backup-Device
 {
     Clear-Host
     Write-Header "Backup Device"
+    Wait-UserConfirm
 
     # Reboot EDL
     if (IsAdbMode)
@@ -302,6 +318,7 @@ function Restore-Backup
 {
     Clear-Host
     Write-Header "Restore Device"
+    Wait-UserConfirm
 
     # Reboot EDL
     if (IsAdbMode)

@@ -179,8 +179,8 @@ function Flash-EngineeringAbl
     Write-Log "This is a critical part of the unlock process." "Warning"
 
     Write-Host "`nTo proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
-    $rebootConfirmation = Read-Host
-    if ($rebootConfirmation -ne 'YES')
+    $confirmation = Read-Host
+    if ($confirmation -ne 'YES')
     {
         Write-Log "Reboot to EDL aborted by user. No changes have been made." "Warning"
         return
@@ -237,8 +237,8 @@ function Perform-FastbootUnlock
     Write-Log "Recommended to do a backup in the main menu." "Warning"
 
     Write-Host "`nTo proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
-    $rebootConfirmation = Read-Host
-    if ($rebootConfirmation -ne 'YES')
+    $confirmation = Read-Host
+    if ($confirmation -ne 'YES')
     {
         Write-Log "Reboot to FASTBOOT aborted by user. No changes have been made." "Warning"
         return
@@ -470,8 +470,8 @@ function Perform-FastbootLock
     Write-Log "Recommended to do a backup in the main menu." "Warning"
 
     Write-Host "`nTo proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
-    $rebootConfirmation = Read-Host
-    if ($rebootConfirmation -ne 'YES')
+    $confirmation = Read-Host
+    if ($confirmation -ne 'YES')
     {
         Write-Log "Reboot to FASTBOOT aborted by user. No changes have been made." "Warning"
         return
