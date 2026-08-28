@@ -65,15 +65,23 @@ function Clean-LogFormat
 
 function Write-Header([string]$Title)
 {
+    Write-Host ""
+    Write-Host ""
+    Write-Host "================================================================="
+    Write-Host "================================================================="
+    Write-Host ""
+    Write-Host ""
+    Clear-Host
+
     # Calculate the exact width needed for the border
     # 4 accounts for the " # " prefix and the trailing space/hashtag spacing
     $BorderLength = $Title.Length + 4
     $Border = "#" * $BorderLength
 
-    Write-Host "`n"
     Write-Host " ${cDarkGray}$Border${cReset} "
     Write-Host " ${cCyan}# $Title #${cReset} "
     Write-Host " ${cDarkGray}$Border${cReset} "
+    Write-Host ""
 }
 
 # Function to check if a command exists
@@ -173,12 +181,11 @@ function Select-Firehose
 {
     if ($null -eq $script:FirehoseTargetPath)
     {
-        Write-Host "`n"
-        Write-Log "Select your device model to use the correct firehose:" "Info"
+        Write-Header "Select Firehose"
         Write-Host " [${cCyan}1${cReset}] Pico 4 / Pico Neo 3 (DDR 4)"
         Write-Host " [${cCyan}2${cReset}] Pico 4 Pro (DDR 5)"
 
-        $fhChoice = Read-Host "`nSelect an option"
+        $fhChoice = Read-Host "`nSelect your device model to use the correct firehose"
 
         if ($fhChoice -in "1", "")
         {
@@ -224,7 +231,6 @@ fastboot flashing unlock_critical
 
 function Perform-Reboot
 {
-    Clear-Host
     Write-Header "Reboot Selection"
     Write-Host " [${cCyan}1${cReset}] Boot to SYSTEM"
     Write-Host " [${cCyan}2${cReset}] Boot to FASTBOOT"
