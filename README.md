@@ -6,23 +6,17 @@ This repository contains a comprehensive set of tools and scripts to unlock the 
 ### [Download Tool](https://github.com/chaixshot/more-picohaxx-tool/archive/refs/heads/main.zip)
 
 > [!CAUTION]
-> **!!! DO A FULL BACKUP FIRST !!!**
-> It is highly recommended to perform a **full LUN backup via EDL** before starting.
+> **!!! DO A BACKUP FIRST !!!**
+> It is highly recommended to perform a **userdata backup via EDL** before starting.
 > Unlocking the bootloader **WILL WIPE ALL USER DATA**. Use the built-in **Backup/Restore** menu before proceeding.
 > 
 ## 📦 Backup & Restore
 This tool now includes a built-in **Backup/Restore** suite (Option `b` in the main menu) to protect your device data.
 
 ### Features
-*   **Full LUN Backup**: Perform a complete backup of all device partitions (LUN0-LUN5) via EDL mode.
+*   **Userdata Backup**: Perform a complete backup of all device partitions (LUN0-LUN6) via EDL mode.
 *   **Easy Restoration**: Swap between different backup sets using the `Select-BackupFolder` feature.
 *   **QFIL Integration**: Automates the complex QFIL/QPST workflow using the provided `QFILHelper`.
-
-### How to Backup
-1.  Select **Backup/Restore** from the main menu.
-2.  Choose **Backup Device (LUN Mode)**.
-3.  Follow the guided instructions to launch QFIL and save your partition configuration.
-4.  The tool will automatically organize your backup into timestamped folders.
 
 ## Status
 *   **Pico 4**: Confirmed working.
@@ -38,7 +32,7 @@ This tool now includes a built-in **Backup/Restore** suite (Option `b` in the ma
 
 ## ⚠️ WARNING
 *   **Risk**: Flashing firmware carries inherent risks. While this method is tested, you proceed at your own risk.
-*   **Engineering ABL & Devinfo**: The process involves flashing early engineering files. **Your Pico will not boot after flashing these** until the unlock process is complete. On Pico 4, this may result in SELinux being set to permissive.
+*   **Engineering ABL & Devinfo**: The process involves flashing early engineering files. On Pico 4, this may result in SELinux being set to permissive.
 
 ## How It Works
 
