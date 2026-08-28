@@ -18,6 +18,8 @@ $QfilAppdataPath = Join-Path $env:APPDATA "Qualcomm\QFIL"
 
 $BackupPath = Join-Path $ProjectRoot "tools\qpst"
 $TMPPath = Join-Path $ProjectRoot "tools\qpst\TMP"
+$ErrorsPath = Join-Path $ProjectRoot "tools\qpst\Errors"
+$PortTracePath = Join-Path $ProjectRoot "tools\qpst\port_trace.txt"
 $FlashBackupName = ""
 $FlashPath = Join-Path $BackupPath "Flash"
 
@@ -114,6 +116,33 @@ function Start-QFILHelper([string]$menuID = "")
 
         # Run QFILHelper in the current window and wait
         Start-Process -FilePath $executablePath -ArgumentList $argumentList -WorkingDirectory $workingDirectory -NoNewWindow -Wait
+
+        # Move port_trace.txt
+        if (Test-Path -Path $PortTracePath)
+        {
+            Write-Log "Moving port trace to logs..." "Action"
+            if (-not (Test-Path -Path $LogsPath))
+            {
+                New-Item -ItemType Directory -Path $LogsPath | Out-Null
+            }
+            Move-Item -Path $PortTracePath -Destination "$LogsPath\${TimeStamp}_port_trace.txt" -Force
+        }
+
+        # Move qpst/Errors/
+        if (Test-Path -Path $ErrorsPath)
+        {
+            $latestError = Get-ChildItem -Path $ErrorsPath -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            if ($null -ne $latestError)
+            {
+                if (-not (Test-Path -Path $script:LogsPath))
+                {
+                    New-Item -ItemType Directory -Path $script:LogsPath | Out-Null
+                }
+                $destErrorLog = "$script:LogsPath\${script:TimeStamp}_qfilerror.log"
+                Move-Item -Path $latestError.FullName -Destination $destErrorLog -Force
+                Write-Log "Moved QFIL error log to: $destErrorLog" "Action"
+            }
+        }
     }
     else
     {
@@ -416,17 +445,24 @@ function Backup-Device
     }
     elseif (Test-BackupSuccess -FolderPath $newBackup.FullName)
     {
-        Write-Log "Detected new backup at: ${cCyan}$($newBackup.FullName)${cReset}" "Success"
+        Write-Log "Detected new backup at: ${cCyan}$( $newBackup.FullName )${cReset}" "Success"
     }
     else
     {
-        Write-Log "Found backup folder at '${cCyan}$($newBackup.FullName)${cReset}', but validation failed." "Error"
-        Write-Log "Deleting invalid backup folder..." "Action"
-        Remove-Item -Path $newBackup.FullName -Recurse -Force -ErrorAction Stop
+        Write-Log "Found backup folder at '${cCyan}$( $newBackup.FullName )${cReset}', but validation failed." "Error"
+        if (Test-Path -Path $newBackup.FullName)
+        {
+            Write-Log "Deleting invalid backup folder..." "Action"
+            Remove-Item -Path $newBackup.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
 
-    Write-Log "Deleting TMP folder..." "Action"
-    Remove-Item -Path $TMPPath -Recurse -Force -ErrorAction Stop
+    # Delete TMP folder
+    if (Test-Path -Path $TMPPath)
+    {
+        Write-Log "Deleting ${cCyan}$( $TMPPath )${cReset} folder..." "Action"
+        Remove-Item -Path $TMPPath -Recurse -Force -ErrorAction SilentlyContinue
+    }
 
     Wait-Continue
 }
