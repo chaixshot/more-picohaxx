@@ -14,7 +14,6 @@ $Magisk = ".\tools\Magisk4Pico.apk"
 
 function Prepare-Magisk
 {
-    Clear-Host
     Write-Header "Preparing Magisk"
 
     if (IsFastbootMode)
@@ -132,7 +131,6 @@ function Prepare-Magisk
 
 function Flash-Magisk
 {
-    Clear-Host
     Write-Header "Flashing Magisk"
     Write-Log "This step will reboot your device into ${cCyan}bootloader${cReset} mode to flash the patched boot image." "Warning"
     Write-Host "To proceed with rebooting to bootloader, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
@@ -258,7 +256,6 @@ function Show-RootMenu
     $rootQuit = $false
     while (-not $rootQuit)
     {
-        Clear-Host
         Write-Header "Pico Root Menu"
         Write-Host " [${cCyan}1${cReset}] Prepare Magisk ${cDarkGray}(Install APK & Firmware link)${cReset}"
         Write-Host " [${cCyan}2${cReset}] Flash Magisk ${cDarkGray}(Fastboot)${cReset}"

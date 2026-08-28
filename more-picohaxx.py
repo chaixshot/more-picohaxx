@@ -18,7 +18,7 @@ def pico_unlock(serial: int):
 	print(f"ser: {hex(serial)} {serial} \n{generate_unlock(serial)}")
 
 # put /sys/devices/soc0/serial_number here (decimal)
-pico_unlock(1234567)
+pico_unlock(1907116515)
 
 """
 

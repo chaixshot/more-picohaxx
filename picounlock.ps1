@@ -52,7 +52,6 @@ $script:PatchedImagePath = $null
 
 function Check-Prerequisites
 {
-    Clear-Host
     Write-Header "Running Prerequisite Checks"
 
     $isReady = $true
@@ -151,7 +150,6 @@ function Check-Prerequisites
 
 function Generate-UnlockCode
 {
-    Clear-Host
     Write-Header "Generating Unlock Code"
 
     if (-not (IsAdbMode))
@@ -174,7 +172,6 @@ function Generate-UnlockCode
 
 function Flash-EngineeringAbl
 {
-    Clear-Host
     Write-Header "Flashing Engineering ABL & Devinfo via EDL"
     Write-Log "This step will reboot your device into ${cCyan}EDL (Emergency Download)${cReset} mode to flash engineering files." "Warning"
     Write-Log "This is a critical part of the unlock process." "Warning"
@@ -231,7 +228,6 @@ function Flash-EngineeringAbl
 
 function Perform-FastbootUnlock
 {
-    Clear-Host
     Write-Header "Performing Unlock Bootloader"
     Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to unlock bootloader." "Warning"
     Write-Log "If bootloader is in ${cRed}Locked${cReset} state, this process will factory reset device data." "Warning"
@@ -285,7 +281,6 @@ function Perform-FastbootUnlock
 
 function Verify-Unlock
 {
-    Clear-Host
     Write-Header "Verify Unlock"
     Fastboot-To-Fastboot
 
@@ -317,7 +312,6 @@ function Verify-Unlock
 
 function Show-UnlockFinalInstructions
 {
-    Clear-Host
     Write-Header "Finalizing"
     Write-Log "!!! CRITICAL NEXT STEP !!!" "Warning"
     Write-Log "If you want to root the device (${cCyan}Option 4${cReset}), do it before flash backup ABL." "Warning"
@@ -412,7 +406,6 @@ function Get-LatestBackupPath
 
 function Restore-OriginalAbl
 {
-    Clear-Host
     Write-Header "Restoring Original Partitions via EDL"
     Write-Log "This fix resolves issues like slow reboots and unwanted booting into ${cCyan}EDL${cReset} mode." "Info"
     Write-Log "SELinux will return to ${cYellow}Enforcing${cReset} mode, using ${cCyan}https://github.com/evdenis/selinux_permissive${cReset} to change back to Permissive mode" "Info"
@@ -464,7 +457,6 @@ function Restore-OriginalAbl
 
 function Perform-FastbootLock
 {
-    Clear-Host
     Write-Header "Performing Lock Bootloader"
     Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to unlock bootloader." "Warning"
     Write-Log "If bootloader is in ${cGreen}Unlocked${cReset} state, this process will factory reset device data." "Warning"
@@ -531,7 +523,6 @@ function Perform-FastbootLock
 
 function Verify-Lock
 {
-    Clear-Host
     Write-Header "Verify Lock"
     Fastboot-To-Fastboot
 
@@ -563,7 +554,6 @@ function Verify-Lock
 
 function Show-LockFinalInstructions
 {
-    Clear-Host
     Write-Header "Finalizing Lock"
     Write-Log "Check your device screen to confirm the current lock state." "Info"
     Write-Log "After rebooting, you will likely be prompted to perform a ${cYellow}factory reset${cReset}. This is expected." "Info"
@@ -605,7 +595,6 @@ try
     $quit = $false
     while (-not $quit)
     {
-        Clear-Host
         Write-Header "PicoUnlock Main Menu"
 
         Write-Host " [${cCyan}1${cReset}] Generate UnlockCode"
@@ -666,6 +655,8 @@ catch
 }
 finally
 {
+    Write-Header
+
     try { Stop-Transcript } catch {}
     try { Clean-LogFormat -LogFile $LogFile } catch {}
     try { Restore-FlashBackupName } catch {}

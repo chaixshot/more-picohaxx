@@ -22,7 +22,6 @@ $FlashPath = Join-Path $BackupPath "Flash"
 
 function Check-BackupPrerequisites
 {
-    Clear-Host
     Write-Header "Backup Prerequisite Checks"
 
     $isReady = $true
@@ -144,7 +143,6 @@ function Start-QFILHelper([string]$AutoInput = "")
 
 function QFIL-ShowInstructions
 {
-    Clear-Host
     Write-Header "QFIL Instructions"
 
     $comPort = Get-QualcommCOMPort
@@ -172,7 +170,6 @@ function QFIL-ShowInstructions
 
 function Post-Steps
 {
-    Clear-Host
     Write-Header "Post Steps"
     Write-Log "Your device will not automatically reboot." "Info"
     Write-Log "Hold ${cYellow}Power Button${cReset} for 10 seconds to reboot to system." "Info"
@@ -188,7 +185,6 @@ function Clean-QualcommAppdata
 
 function Select-BackupFolder
 {
-    Clear-Host
     Write-Header "Select Backup Folder"
 
     $backupFolders = Get-ChildItem -Path $BackupPath -Directory -Filter "Backup-*" | Sort-Object CreationTime -Descending
@@ -299,7 +295,6 @@ function Wait-UserConfirm([bool]$CheckDiskSpace)
         }
 
         Write-Log "Estimated userdata size: ${cGreen}$userdataSize GB${cReset}" "Info"
-        Write-Log "Estimated compressed userdata size: ${cGreen}$([math]::Round($userdataSize * 0.088, 2)) GB${cReset}" "Info"
         Write-Log "Current disk space (${cCyan}Drive ${driveName}${cReset}): ${cGreen}$freeSpaceGB GB${cReset}" "Info"
         Write-Host ""
 
@@ -327,7 +322,6 @@ function Wait-UserConfirm([bool]$CheckDiskSpace)
 
 function Backup-Device
 {
-    Clear-Host
     Write-Header "Backup Device"
     if (-not (Wait-UserConfirm($true))) {
         return
@@ -390,7 +384,6 @@ function Backup-Device
 
 function Restore-Backup
 {
-    Clear-Host
     Write-Header "Restore Device"
     if (-not (Wait-UserConfirm($false))) {
         return
@@ -448,7 +441,6 @@ function Show-BackupRestoreMenu
     $menuQuit = $false
     while (-not $menuQuit)
     {
-        Clear-Host
         Write-Header "Backup/Restore Menu"
         Write-Host " [${cCyan}1${cReset}] Backup Device"
         Write-Host " [${cCyan}2${cReset}] Restore Device"
