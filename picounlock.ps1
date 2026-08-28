@@ -96,14 +96,14 @@ function Check-Prerequisites
         Write-Log "'${cYellow}$FirehoseDDR5Path${cReset}' not found. Please download it and place it correctly." "Error"
         $isReady = $false
     }
-    Write-Log "All prerequisites found." "Success"
-    Write-Host ""
 
     # Check for EDL driver and offer to install it
     $targetDrivers = "qcser\.inf|android_winusb\.inf|qcmdm\.inf|qcnet\.inf"
     $installedDrivers = (pnputil /enum-drivers) -join "`n"
     if ($installedDrivers -notmatch $targetDrivers)
     {
+        Write-Log "All prerequisites found." "Success"
+        Write-Host ""
         Write-Log "The WinUSB driver for ${cCyan}EDL mode (Qualcomm 9008)${cReset} does not appear to be installed." "Warning"
         Write-Log "This is required for flashing the ${cYellow}bootloader${cReset}." "Info"
         Write-Host "Press ${cCyan}Y${cReset} to install the driver now, or ${cYellow}N${cReset} to skip (Requires Administrator privileges): " -NoNewline
