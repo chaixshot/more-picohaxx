@@ -42,8 +42,7 @@ function Write-Log([string]$Message, [string]$Type = "Info")
             $cGray
         }
     }
-    $Timestamp = Get-Date -Format "HH:mm:ss"
-    Write-Host "${cGray}[$Timestamp] ${Color}[$Type] ${cReset}$Message"
+    Write-Host "${Color}[$Type] ${cReset}$Message"
 }
 
 function Write-Header([string]$Title)
@@ -295,14 +294,14 @@ function Warning-FASTBOOT
     Write-Host ""
     Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Error"
     Write-Log "Please ensure device connected and in FASTBOOT mode." "Error"
-    Write-Host "Manually boot to FASTBOOT by hold ${cYellow}Vol Down + Power${cReset} from off state."
+    Write-Host "Manually boot to FASTBOOT by keep hold ${cYellow}Vol Down + Power${cReset}."
 }
 
 function Warning-EDL
 {
     Write-Host ""
     Write-Log "Device not detected in EDL mode." "Error"
-    Write-Log "Manually boot to EDL by hold ${cYellow}Vol Up + Vol Down + Power${cReset} from off state." "Info"
+    Write-Log "Manually boot to EDL by keep hold ${cYellow}Vol Up + Vol Down + Power${cReset}." "Info"
 }
 
 function ADB-To-System
