@@ -27,15 +27,19 @@ function Write-Log([string]$Message, [string]$Type = "Info")
     $Color = switch ($Type)
     {
         "Success" {
+            [System.Media.SystemSounds]::Asterisk.Play()
             $cGreen
         }
         "Warning" {
+            [System.Media.SystemSounds]::Exclamation.Play()
             $cYellow
         }
         "Error" {
+            [System.Media.SystemSounds]::Hand.Play()
             $cRed
         }
         "Action" {
+            [Console]::Beep(1000, 100)
             $cMagenta
         }
         Default {
