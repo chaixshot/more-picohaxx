@@ -45,6 +45,24 @@ function Write-Log([string]$Message, [string]$Type = "Info")
     Write-Host "${Color}[$Type] ${cReset}$Message"
 }
 
+function Clean-LogFormat
+{
+    param([string]$LogFile)
+
+    if (Test-Path $LogFile)
+    {
+        $content = Get-Content $LogFile -Raw
+
+        # Remove ANSI escape sequences (colors, styles, etc.)
+        # This covers $cReset, $cCyan, $cYellow, $cGreen, $cMagenta, $cRed, $cBold, $cGray, $cWhite
+        $esc = [char]27
+        $pattern = "$([char]27)\[[0-9;]*[a-zA-Z]"
+
+        $cleanContent = $content -replace $pattern, ""
+        $cleanContent | Set-Content $LogFile -Force
+    }
+}
+
 function Write-Header([string]$Title)
 {
     # Calculate the exact width needed for the border

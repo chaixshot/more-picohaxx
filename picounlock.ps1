@@ -590,7 +590,8 @@ if (-not (Test-Path $LogsPath ))
 {
     New-Item -ItemType Directory -Path $LogsPath  | Out-Null
 }
-Start-Transcript -Path "$LogsPath\$timestamp.log" -Append
+$LogFile = "$LogsPath\$timestamp.log"
+Start-Transcript -Path $LogFile -Append
 
 try
 {
@@ -666,5 +667,6 @@ catch
 finally
 {
     try { Stop-Transcript } catch {}
+    try { Clean-LogFormat -LogFile $LogFile } catch {}
     try { Restore-FlashBackupName } catch {}
 }
