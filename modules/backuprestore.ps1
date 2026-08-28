@@ -252,8 +252,66 @@ function Restore-FlashBackupName
     }
 }
 
-function Wait-UserConfirm
+function Get-UserdataSizeGB
 {
+    if (IsAdbMode)
+    {
+        try
+        {
+            # Logic: Get block size from /sys/class/block/ for userdata partition
+            $partitionPath = (& $ADB shell "readlink -f /dev/block/by-name/userdata").Trim()
+            $partitionName = Split-Path $partitionPath -Leaf
+            $blocksRaw = (& $ADB shell "cat /sys/class/block/$partitionName/size").Trim()
+
+            if ($blocksRaw -match '^\d+$')
+            {
+                $blocks = [long]$blocksRaw
+                # Standard block size is 512 bytes
+                $sizeGB = [math]::Round(($blocks * 512) / 1GB, 2)
+                return $sizeGB
+            }
+        }
+        catch
+        {
+        }
+    }
+    return 110 # Default for Pico 4
+}
+
+function Wait-UserConfirm([bool]$CheckDiskSpace)
+{
+    if ($CheckDiskSpace)
+    {
+        $userdataSize = Get-UserdataSizeGB
+        $scriptDriveLetter = Split-Path -Path $PSScriptRoot -Qualifier
+
+        # Strip trailing colon if needed (e.g., "C:" -> "C")
+        $driveName = $scriptDriveLetter.TrimEnd(':')
+        $targetDrive = Get-PSDrive $driveName -ErrorAction SilentlyContinue
+
+        $freeSpaceGB = if ($targetDrive)
+        {
+            [math]::Round($targetDrive.Free / 1GB, 2)
+        }
+        else
+        {
+            0
+        }
+
+        Write-Log "Estimated userdata size: ${cGreen}$userdataSize GB${cReset}" "Info"
+        Write-Log "Estimated compressed userdata size: ${cGreen}$([math]::Round($userdataSize * 0.088, 2)) GB${cReset}" "Info"
+        Write-Log "Current disk space (${cCyan}Drive ${driveName}${cReset}): ${cGreen}$freeSpaceGB GB${cReset}" "Info"
+        Write-Host ""
+
+        if ($freeSpaceGB -lt $userdataSize)
+        {
+            Write-Log "Free space on drive ${cCyan}${scriptDriveLetter}${cReset} is less than the estimated userdata size (${cCyan}$userdataSize GB${cReset})!" "Warning"
+            Write-Log "Please ensure you have enough space on drive ${cCyan}${scriptDriveLetter}${cReset} before proceeding." "Warning"
+            Write-Log "This process uses disk compression, so it may still fit within the available disk space." "Info"
+            Write-Host ""
+        }
+    }
+
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to access the userdata partition." "Warning"
     Write-Log "This process takes at least ${cGreen}40 minutes${cReset}. High speed ${cGreen}USB 3.0${cReset} is recommended." "Warning"
     Write-Host "To proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
@@ -271,7 +329,7 @@ function Backup-Device
 {
     Clear-Host
     Write-Header "Backup Device"
-    if (-not (Wait-UserConfirm)) {
+    if (-not (Wait-UserConfirm($true))) {
         return
     }
 
@@ -294,7 +352,6 @@ function Backup-Device
     $latestBackup = Get-ChildItem -Path $BackupPath -Directory -Filter "Backup-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
     QFIL-ShowInstructions
-    Write-Log "After press Enter, wait for process finish and select ${cCyan}Q-Quit${cReset}" "Info"
 
     # Start QFIL
     Clean-QualcommAppdata
@@ -335,7 +392,7 @@ function Restore-Backup
 {
     Clear-Host
     Write-Header "Restore Device"
-    if (-not (Wait-UserConfirm)) {
+    if (-not (Wait-UserConfirm($false))) {
         return
     }
 
