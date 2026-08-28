@@ -42,6 +42,8 @@ $QDL = ".\tools\qdl.exe"
 $ADB = ".\tools\adb.exe"
 $FASTBOOT = ".\tools\fastboot.exe"
 
+$TimeStamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+
 $script:PatchedImagePath = $null
 
 # --- Helper Functions ---
@@ -207,8 +209,7 @@ function Flash-EngineeringAbl
     }
 
     # Create a timestamped backup folder
-    $folderName = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-    $currentBackupPath = Join-Path $AblBackupPath $folderName
+    $currentBackupPath = Join-Path $AblBackupPath $TimeStamp
     New-Item -Path $currentBackupPath -ItemType Directory | Out-Null
     $backupAbl = Join-Path $currentBackupPath "abl.bin"
     $backupDevInfo = Join-Path $currentBackupPath "devinfo.bin"
@@ -575,12 +576,11 @@ function Show-LockFinalInstructions
 
 # --- Main Script Execution ---
 
-$timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 if (-not (Test-Path $LogsPath ))
 {
     New-Item -ItemType Directory -Path $LogsPath  | Out-Null
 }
-$LogFile = "$LogsPath\$timestamp.log"
+$LogFile = "$LogsPath\${TimeStamp}_console.log"
 Start-Transcript -Path $LogFile -Append
 
 try
