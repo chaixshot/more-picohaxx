@@ -475,10 +475,12 @@ function Show-BackupRestoreMenu
         switch ($choice)
         {
             "1" {
+                Select-Firehose
                 Backup-Device
                 Post-Steps
             }
             "2" {
+                Select-Firehose
                 $targetBackup = Select-BackupFolder
                 if ($null -ne $targetBackup)
                 {
