@@ -11,12 +11,12 @@
 $workingDirectory = "tools\qpst"
 $qpstTMP = "$workingDirectory\TMP"
 $errorsPath = "$workingDirectory\Errors"
-$script:portTracePath = Join-Path $ProjectRoot "port_trace.txt"
-$script:FHLoaderPath = Join-Path $ProjectRoot "$workingDirectory\fh_loader.exe"
+$portTrace = Join-Path $ProjectRoot "port_trace.txt"
+$fhLoader = Join-Path $ProjectRoot "$workingDirectory\fh_loader.exe"
 
-$script:galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
-$script:gsBackupDir = $null
-$script:geFailed = 0 # 0: NOERR, 1: FAILD, 2: ABORT
+$galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
+$gsBackupDir = $null
+$geFailed = 0 # 0: NOERR, 1: FAILD, 2: ABORT
 
 # --- Functions ---
 
@@ -129,7 +129,7 @@ function BackupPartitions
     ResetLookUp
     CreateBackupFolder
 
-    # Read GPT Headers to populate $script:galoLookUp
+    # Read GPT Headers to populate $galoLookUp
     if (-not (ReadGPTHeaders -isTemp $true))
     {
         CleanUpBackupFolder
@@ -142,7 +142,7 @@ function BackupPartitions
     # Calculate total partitions to back up
     $totalParts = 0
     for ($i = 0; $i -le 6; $i++) {
-        foreach ($part in $script:galoLookUp[$i])
+        foreach ($part in $galoLookUp[$i])
         {
             if ($part.sLabel -ne "userdata")
             {
@@ -156,7 +156,7 @@ function BackupPartitions
     Display-DontInterrupt
     for ($iLUN = 0; $iLUN -le 6; $iLUN++)
     {
-        foreach ($part in $script:galoLookUp[$iLUN])
+        foreach ($part in $galoLookUp[$iLUN])
         {
             # Skip userdata partition as it's handled separately
             if ($part.sLabel -eq "userdata")
@@ -186,7 +186,7 @@ function BackupPartitions
             $isExec = $true
         }
 
-        if ($script:geFailed -eq 1)
+        if ($geFailed -eq 1)
         {
             break
         }
@@ -424,7 +424,7 @@ function Short2Long($fileName, [string]$FlashPath)
     $baseName = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
     for ($i = 0; $i -le 6; $i++)
     {
-        foreach ($part in $script:galoLookUp[$i])
+        foreach ($part in $galoLookUp[$i])
         {
             if ($part.sLabel -eq $baseName)
             {
@@ -465,7 +465,7 @@ function LookUpNames($obPInfo)
 {
     $targetLabel = $obPInfo.sLabel.ToLower()
     $iLBound = 0
-    $iUBound = $script:galoLookUp.Count - 1
+    $iUBound = $galoLookUp.Count - 1
 
     if ($null -ne $obPInfo.iLUN)
     {
@@ -475,7 +475,7 @@ function LookUpNames($obPInfo)
 
     for ($i = $iLBound; $i -le $iUBound; $i++)
     {
-        foreach ($part in $script:galoLookUp[$i])
+        foreach ($part in $galoLookUp[$i])
         {
             if ($part.sLabel -eq $targetLabel)
             {
@@ -513,8 +513,8 @@ function ResetLookUp
 
 function CreateBackupFolder
 {
-    $script:gsBackupDir = "$workingDirectory\Backup-$script:TimeStamp\"
-    New-Item -ItemType Directory -Path $script:gsBackupDir | Out-Null
+    $script:gsBackupDir = "$workingDirectory\Backup-$TimeStamp\"
+    New-Item -ItemType Directory -Path $gsBackupDir | Out-Null
 }
 
 function ReadGPTHeaders([bool]$isTemp = $false, [bool]$isSort = $false)
@@ -599,7 +599,7 @@ function LoadGPTData($obPInfo, [bool]$isTemp, [bool]$isSort = $false)
 
         if ($isSort)
         {
-            $script:galoLookUp[$obPInfo.iLUN] = $script:galoLookUp[$obPInfo.iLUN] | Sort-Object sLabel
+            $script:galoLookUp[$obPInfo.iLUN] = $galoLookUp[$obPInfo.iLUN] | Sort-Object sLabel
         }
     }
     catch
@@ -621,7 +621,7 @@ function CalcBounds($obPInfo)
         {
             # For LUN0, we typically want the size up to userdata or the grow partition
             # Logic from VB: index = count - 3
-            $lun0 = $script:galoLookUp[0]
+            $lun0 = $galoLookUp[0]
             if ($lun0.Count -ge 3)
             {
                 $targetPart = $lun0[$lun0.Count - 3]
@@ -633,7 +633,7 @@ function CalcBounds($obPInfo)
         {
             # For other LUNs, we take the size up to the end of the last partition
             $iCnt = $obPInfo.iLUN
-            $lun = $script:galoLookUp[$iCnt]
+            $lun = $galoLookUp[$iCnt]
             if ($lun.Count -gt 0)
             {
                 $targetPart = $lun[$lun.Count - 1]
@@ -680,7 +680,7 @@ function BuildCommand($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string]
 function ExecuteCommand([string]$sCMDLine)
 {
     $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-    $processInfo.FileName = $script:FHLoaderPath
+    $processInfo.FileName = $fhLoader
     $processInfo.Arguments = $sCMDLine
     $processInfo.RedirectStandardOutput = $true
     $processInfo.RedirectStandardError = $true
@@ -709,7 +709,7 @@ function ExecuteCommand([string]$sCMDLine)
             {
                 New-Item -ItemType Directory -Path $errorsPath | Out-Null
             }
-            $errorFile = "$errorsPath\QFIL-Error-$script:TimeStamp.txt"
+            $errorFile = "$errorsPath\QFIL-Error-$TimeStamp.txt"
             Set-Content -Path $errorFile -Value ($stderr + "`n" + $stdout)
 
             return $false
@@ -727,15 +727,15 @@ function ExecuteCommand([string]$sCMDLine)
 
 function CleanUpBackupFolder()
 {
-    if ($null -eq $script:gsBackupDir)
+    if ($null -eq $gsBackupDir)
     {
         return
     }
-    if (Test-Path $script:gsBackupDir)
+    if (Test-Path $gsBackupDir)
     {
-        if ((Get-ChildItem -Path $script:gsBackupDir -Filter "*.bin").Count -eq 0)
+        if ((Get-ChildItem -Path $gsBackupDir -Filter "*.bin").Count -eq 0)
         {
-            Remove-Item -Path $script:gsBackupDir -Recurse -Force
+            Remove-Item -Path $gsBackupDir -Recurse -Force
         }
     }
 }
@@ -745,7 +745,7 @@ function ProcessCompletedMsg([bool]$isExec = $true)
     Play-BeepBeep
     Move-Log
 
-    if ($script:geFailed -eq 1)
+    if ($geFailed -eq 1)
     {
         Write-Log "Process finished with errors." "Error"
         $script:geFailed = 0
@@ -773,7 +773,7 @@ function BuildFileName($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string
     }
     else
     {
-        $script:gsBackupDir
+        $gsBackupDir
     }
 
     $sName = "lun$( $obPInfo.iLUN )"
@@ -806,14 +806,14 @@ function Move-Log
     }
 
     # Move ./port_trace.txt
-    if (Test-Path -Path $PortTracePath)
+    if (Test-Path -Path $portTrace)
     {
-        Write-Log "Moving ${cCyan}$PortTracePath${cReset} to logs..." "Action"
+        Write-Log "Moving ${cCyan}$portTrace${cReset} to logs..." "Action"
         if (-not (Test-Path -Path $LogsPath))
         {
             New-Item -ItemType Directory -Path $LogsPath | Out-Null
         }
-        Move-Item -Path $PortTracePath -Destination "$LogsPath\${TimeStamp}_port_trace.txt" -Force
+        Move-Item -Path $portTrace -Destination "$LogsPath\${TimeStamp}_port_trace.txt" -Force
     }
 
     # Move ./tools/qpst/Errors/*.log
@@ -822,11 +822,11 @@ function Move-Log
         $latestError = Get-ChildItem -Path $ErrorsPath -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if ($null -ne $latestError)
         {
-            if (-not (Test-Path -Path $script:LogsPath))
+            if (-not (Test-Path -Path $LogsPath))
             {
-                New-Item -ItemType Directory -Path $script:LogsPath | Out-Null
+                New-Item -ItemType Directory -Path $LogsPath | Out-Null
             }
-            $destErrorLog = "$script:LogsPath\${script:TimeStamp}_qfilerror.log"
+            $destErrorLog = "$LogsPath\${TimeStamp}_qfilerror.log"
             Move-Item -Path $latestError.FullName -Destination $destErrorLog -Force
             Write-Log "Moved QFIL error log to: $destErrorLog" "Action"
         }
