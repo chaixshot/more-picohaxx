@@ -27,7 +27,6 @@
 # --- Script Configuration ---
 $PicoHaxxPyScript = ".\more-picohaxx.py"
 $DRIVER = ".\tools\driver"
-$Picounlock = ".\picounlock.txt"
 $LogsPath = ".\logs"
 
 $FirehoseDDR4Path = (Get-Item ".\tools\firehoses\prog_firehose_ddr.elf").FullName
@@ -258,13 +257,23 @@ function Perform-FastbootUnlock
         return
     }
 
-    Write-Log "Executing unlock commands..." "Action"
-    Invoke-Expression Invoke-PicoHaxxScript
-    & $FASTBOOT oem setenforce 0
-    & $FASTBOOT flashing unlock
-    & $FASTBOOT flashing unlock_critical
+    if (-not (Execute-UnlockCommand))
+    {
+        return
+    }
 
-    Write-Log "Checking device unlock status..." "Info"
+    Write-Host ""
+    Write-Log "Executing commands: ${cCyan}fastboot flashing unlock_critical${cReset}" "Action"
+    & $FASTBOOT flashing unlock_critical
+    Write-Host ""
+    Write-Log "Executing commands: ${cCyan}fastboot flashing unlock${cReset}" "Action"
+    & $FASTBOOT flashing unlock
+    Write-Host ""
+    Write-Log "Executing commands: ${cCyan}fastboot oem setenforce 0${cReset}" "Action"
+    & $FASTBOOT oem setenforce 0
+
+    Write-Host ""
+    Write-Log "Checking device unlock status..." "Action"
     $deviceInfo = & $FASTBOOT oem device-info 2>&1
     Write-Host $deviceInfo
     if (($deviceInfo -like "*Device unlocked: true*") -and ($deviceInfo -like "*Device critical unlocked: true*"))
@@ -273,7 +282,7 @@ function Perform-FastbootUnlock
     }
     else
     {
-        Write-Log "Device does not report as fully unlocked. You may need to repeat the process." "Warning"
+        Write-Log "Device does not report as fully unlocked. You may need to repeat the process." "Error"
     }
 
     Wait-Continue
@@ -487,9 +496,10 @@ function Perform-FastbootLock
         return
     }
 
-    Write-Log "Executing lock commands..." "Action"
-    # Authorization may be required even for locking on some engineering builds
-    Invoke-Expression Invoke-PicoHaxxScript
+    if (-not (Execute-UnlockCommand))
+    {
+        return
+    }
 
     $backupPath = Get-LatestBackupPath
     if ($backupPath)
@@ -502,11 +512,18 @@ function Perform-FastbootLock
         Write-Log "No backup found to restore during lock process. Proceeding with caution." "Warning"
     }
 
+    Write-Host ""
+    Write-Log "Executing commands: ${cCyan}fastboot oem setenforce 1${cReset}" "Action"
     & $FASTBOOT oem setenforce 1
+    Write-Host ""
+    Write-Log "Executing commands: ${cCyan}fastboot flashing lock${cReset}" "Action"
     & $FASTBOOT flashing lock
+    Write-Host ""
+    Write-Log "Executing commands: ${cCyan}fastboot flashing lock_critical${cReset}" "Action"
     & $FASTBOOT flashing lock_critical
 
-    Write-Log "Checking device lock status..." "Info"
+    Write-Host ""
+    Write-Log "Checking device lock status..." "Action"
     $deviceInfo = & $FASTBOOT oem device-info 2>&1
     Write-Host $deviceInfo
     if (($deviceInfo -like "*Device locked: false*") -and ($deviceInfo -like "*Device critical locked: false*"))
@@ -515,7 +532,7 @@ function Perform-FastbootLock
     }
     else
     {
-        Write-Log "Device does not report as fully locked. You may need to repeat the process." "Warning"
+        Write-Log "Device does not report as fully locked. You may need to repeat the process." "Error"
     }
 
     Wait-Continue

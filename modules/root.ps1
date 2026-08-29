@@ -156,39 +156,8 @@ function Flash-Magisk
         return
     }
 
-    # Read unlock command from picounlock.txt
-    if (Test-Path $Picounlock)
+    if (-not (Execute-UnlockCommand))
     {
-        $unlockCmd = Get-Content $Picounlock | Select-Object -First 1
-        if ($unlockCmd -match "fastboot oem pico")
-        {
-            Write-Log "Running unlock command: ${cCyan}$unlockCmd${cReset}" "Action"
-            # Use the local fastboot path with the call operator (&)
-            $cmdToRun = "& " + ($unlockCmd -replace 'fastboot', "`"$FASTBOOT`"")
-            Invoke-Expression $cmdToRun
-            if ($LASTEXITCODE -eq 0)
-            {
-                Write-Log "Unlock command executed successfully." "Success"
-            }
-            else
-            {
-                Write-Log "Failed to execute unlock command." "Error"
-                Write-Log "Please make sure ${cYellow}picounlock${cReset} is successful." "Error"
-                Write-Log "And do not flash ${cYellow}backup ABL${cReset} yet!" "Error"
-                return
-            }
-        }
-        else
-        {
-            Write-Log "First line of ${cYellow}$Picounlock${cReset} does not look like an unlock command." "Warning"
-            Write-Log "Please make sure ${cYellow}picounlock${cReset} is successful" "Warning"
-            return
-        }
-    }
-    else
-    {
-        Write-Log "${cYellow}$Picounlock${cReset} not found." "Warning"
-        Write-Log "Please make sure ${cYellow}picounlock${cReset} is successful" "Warning"
         return
     }
 
