@@ -189,46 +189,55 @@ function Wait-UserConfirm
     return $true
 }
 
-function Test-BackupSuccess([string]$FolderPath)
+function Verify-Backup([string]$FolderPath)
 {
-    $requiredFiles = @(
-        "lun0_gpt_header.bin",
-        "lun0_userdata.bin",
-        "lun1_gpt_header.bin",
-        "lun2_gpt_header.bin",
-        "lun3_gpt_header.bin",
-        "lun4_gpt_header.bin",
-        "lun5_gpt_header.bin",
-        "lun6_gpt_header.bin"
-    )
+    $userDataFiles = @("lun0_gpt_header.bin", "lun0_userdata.bin", "lun1_gpt_header.bin", "lun2_gpt_header.bin", "lun3_gpt_header.bin", "lun4_gpt_header.bin", "lun5_gpt_header.bin", "lun6_gpt_header.bin")
+    $lunsFiles = @("lun0_complete.bin", "lun1_complete.bin", "lun2_complete.bin", "lun3_complete.bin", "lun4_complete.bin", "lun5_complete.bin")
 
-    $allFilesExist = $true
-    foreach ($file in $requiredFiles)
+    $userDataFilesExist = $true
+    foreach ($file in $userDataFiles)
     {
         if (-not (Test-Path -Path (Join-Path $FolderPath $file)))
         {
-            Write-Log "Missing required backup file: ${cYellow}$file${cReset}" "Error"
-            $allFilesExist = $false
+            $userDataFilesExist = $false
+            break
         }
     }
 
-    if (-not $allFilesExist)
+    $lunsFilesExist = $true
+    foreach ($file in $lunsFiles)
     {
-        Write-Log "Backup verification failed: one or more files are missing." "Error"
+        if (-not (Test-Path -Path (Join-Path $FolderPath $file)))
+        {
+            $lunsFilesExist = $false
+            break
+        }
+    }
+
+    if ($userDataFilesExist)
+    {
+        Write-Log "Backup verification successful (UserData backup set found)." "Success"
+    }
+    elseif ($lunsFilesExist)
+    {
+        Write-Log "Backup verification successful (Full LUN backup set found)." "Success"
+    }
+    else
+    {
+        Write-Log "Backup verification failed: required backup sets are missing." "Error"
         return $false
     }
 
     $folderSize = (Get-ChildItem -Path $FolderPath -Recurse | Measure-Object -Property Length -Sum).Sum
     $sizeGB = $folderSize / 1GB
+    $sizeFormatted = "{0:N2}" -f $sizeGB
 
     if ($sizeGB -le 10)
     {
-        $sizeFormatted = "{0:N2}" -f $sizeGB
         Write-Log "Backup verification failed: total folder size (${cYellow}$sizeFormatted GB${cReset}) is not greater than 10GB." "Error"
         return $false
     }
 
-    $sizeFormatted = "{0:N2}" -f $sizeGB
     Write-Log "Backup verification successful! Total size: ${cGreen}$sizeFormatted GB${cReset}" "Success"
     return $true
 }
@@ -391,9 +400,11 @@ function Backup-Device
     {
         Write-Log "Could not automatically find the backup folder in $BackupPath." "Warning"
     }
-    elseif (Test-BackupSuccess -FolderPath $newBackup.FullName)
+    elseif (Verify-Backup -FolderPath $newBackup.FullName)
     {
         Write-Log "Detected new backup at: ${cCyan}$( $newBackup.FullName )${cReset}" "Success"
+        Wait-Continue
+
         Folder-Compression $newBackup.FullName
     }
     else
