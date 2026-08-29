@@ -6,4 +6,4 @@ picounlock.txt
 /tools/qpst/Backup-*
 /tools/qpst/TMP
 /tools/qpst/Errors/*
-tools/qpst/port_trace.txt
+port_trace.txt

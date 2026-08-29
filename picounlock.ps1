@@ -50,6 +50,7 @@ $script:PatchedImagePath = $null
 . "$PSScriptRoot/modules/utils.ps1"
 . "$PSScriptRoot/modules/root.ps1"
 . "$PSScriptRoot/modules/backuprestore.ps1"
+. "$PSScriptRoot/modules/qfilhelper.ps1"
 
 
 function Check-Prerequisites
@@ -659,5 +660,4 @@ finally
 
     try { Stop-Transcript } catch {}
     try { Clean-LogFormat -LogFile $LogFile } catch {}
-    try { Restore-FlashBackupName } catch {}
 }
