@@ -42,7 +42,9 @@ function BackupLUNs
 
     # Iterate through LUN 0 to 6
     Display-DontInterrupt
-    for ($iCnt = 0; $iCnt -le 6; $iCnt++)
+    $total = 6
+
+    for ($iCnt = 0; $iCnt -le $total; $iCnt++)
     {
         Write-Progress -Activity "Backing up LUNs" -Status "Processing LUN $iCnt (Progress: $([math]::Round(($iCnt / 7) * 100) )%)" -PercentComplete (($iCnt / 7) * 100)
 
@@ -61,7 +63,7 @@ function BackupLUNs
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
 
-        Write-Log "[$( $iCnt + 1 )/7] Backing up LUN '${cCyan}$( $obPInfo.iLUN )${cReset}'..." "Action"
+        Write-Log "[$( $iCnt + 1 )/$total] Backing up LUN '${cCyan}$( $obPInfo.iLUN )${cReset}'..." "Action"
         if (-not (ExecuteCommand $sCMDLine))
         {
             break
@@ -99,6 +101,14 @@ function BackupUserData
         iStart = 0
         iEnd = 0
         iSectors = 0
+    }
+
+    if (-not (LookUpNames $obPInfo))
+    {
+        Write-Log "Failed to resolve LUN and sectors for partition 'userdata'." "Error"
+        CleanUpBackupFolder
+        ProcessCompletedMsg -isExec $false
+        return
     }
 
     $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
@@ -672,7 +682,7 @@ function BuildCommand($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string]
     {
         $cmd += " --num_sectors=$( $obPInfo.iSectors )"
     }
-    $cmd += " --noprompt --showpercentagecomplete --zlpawarehost=1 --memoryname=ufs"
+    $cmd += " --noprompt --showpercentagecomplete --zlpawarehost=1 --memoryname=ufs --loglevel=0"
 
     return $cmd
 }
