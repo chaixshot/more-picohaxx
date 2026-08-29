@@ -1,7 +1,7 @@
 /.idea
 /abl-backup
 /logs
-picounlock.txt
+serial_number.txt
 /tools/qpst/Flash/*
 /tools/qpst/Backup-*
 /tools/qpst/TMP
