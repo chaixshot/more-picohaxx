@@ -101,7 +101,7 @@ function Check-Prerequisites
     }
 
     # Check for EDL driver and offer to install it
-    $targetDrivers = "qcser\.inf|android_winusb\.inf|qcmdm\.inf|qcnet\.inf"
+    $targetDrivers = "qcser\.inf|android_winusb\.inf"
     $installedDrivers = (pnputil /enum-drivers) -join "`n"
     if ($installedDrivers -notmatch $targetDrivers)
     {
