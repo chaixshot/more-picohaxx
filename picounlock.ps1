@@ -606,8 +606,6 @@ try
         Clear-Host
     }
 
-    Select-Firehose
-
     $quit = $false
     while (-not $quit)
     {
@@ -632,6 +630,7 @@ try
                 Generate-UnlockCode
             }
             "2" {
+                Select-Firehose
                 Flash-EngineeringAbl
             }
             "3" {
@@ -641,6 +640,7 @@ try
                 Show-RootMenu
             }
             "5" {
+                Select-Firehose
                 Restore-OriginalAbl
             }
             "l" {
