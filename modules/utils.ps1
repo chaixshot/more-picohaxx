@@ -39,7 +39,6 @@ function Write-Log([string]$Message, [string]$Type = "Info")
             $cRed
         }
         "Action" {
-            [Console]::Beep(1000, 100)
             $cMagenta
         }
         Default {

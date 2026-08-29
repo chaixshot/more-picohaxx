@@ -12,78 +12,16 @@
 
 $ProjectRoot = Split-Path -Path $PSScriptRoot -Parent
 $QPSTInstaller = Join-Path $ProjectRoot "tools\qpst\QPST Tool v2.7.496.exe"
-$QFILPath = "${env:ProgramFiles(x86)}\Qualcomm\QPST\bin\QFIL.exe"
+$QSaharaServerPath = Join-Path $ProjectRoot "tools\qpst\QSaharaServer.exe"
 $QFILHelper = Join-Path $ProjectRoot "tools\qpst\QFILHelper.exe"
-$QfilAppdataPath = Join-Path $env:APPDATA "Qualcomm\QFIL"
+$ComPort = $null
 
 $BackupPath = Join-Path $ProjectRoot "tools\qpst"
 $TMPPath = Join-Path $ProjectRoot "tools\qpst\TMP"
 $ErrorsPath = Join-Path $ProjectRoot "tools\qpst\Errors"
-$PortTracePath = Join-Path $ProjectRoot "tools\qpst\port_trace.txt"
+$PortTracePath = Join-Path $ProjectRoot ".\port_trace.txt"
 $FlashBackupName = ""
 $FlashPath = Join-Path $BackupPath "Flash"
-
-function Check-BackupPrerequisites
-{
-    Write-Header "Backup Prerequisite Checks"
-
-    $isReady = $true
-
-    # 1. Check if QPST is installed
-    if (-not (Test-Path $QFILPath))
-    {
-        Write-Log "QPST does not appear to be installed on your system." "Warning"
-        if (Test-Path $QPSTInstaller)
-        {
-            Write-Log "QPST Installer found at ${cYellow}$QPSTInstaller${cReset}." "Info"
-            Write-Host "Press ${cCyan}Y${cReset} to run the installer now, or any other key to skip: " -NoNewline
-            $choice = Read-Host
-            if ($choice -eq 'Y' -or $choice -eq 'y')
-            {
-                Write-Log "Launching QPST Installer..." "Action"
-                Start-Process $QPSTInstaller -Wait
-                # Re-check after installation
-                if (-not (Test-Path $QFILPath))
-                {
-                    Write-Log "QPST still not detected after installation." "Error"
-                    $isReady = $false
-                }
-            }
-            else
-            {
-                $isReady = $false
-            }
-        }
-        else
-        {
-            Write-Log "QPST Installer not found at ${cRed}$QPSTInstaller${cReset}." "Error"
-            $isReady = $false
-        }
-    }
-    else
-    {
-        Write-Log "QPST installation detected." "Success"
-    }
-
-    # 2. Check for local QFILHelper
-    if (-not (Test-Path $QFILHelper))
-    {
-        Write-Log "Required tool ${cRed}$QFILHelper${cReset} not found." "Error"
-        $isReady = $false
-    }
-    else
-    {
-        Write-Log "Local tool ${cCyan}QFILHelper${cReset} found." "Success"
-    }
-
-    if (-not $isReady)
-    {
-        Write-Log "Some prerequisites are missing. Functions may not work correctly." "Warning"
-        Wait-Continue
-    }
-
-    return $isReady
-}
 
 function Get-QualcommCOMPort
 {
@@ -102,83 +40,57 @@ function Get-QualcommCOMPort
     return $null
 }
 
-function Start-QFILHelper([string]$menuID = "")
-{
-    if (Test-Path -Path $QFILHelper)
+function Move-Log{
+    # Move port_trace.txt
+    if (Test-Path -Path $PortTracePath)
     {
-        $qfilHelperFile = Get-Item -Path $QFILHelper
-        $executablePath = $qfilHelperFile.FullName
-        $workingDirectory = $qfilHelperFile.DirectoryName
-
-        # Build argument list dynamically
-        $argumentList = @()
-        $argumentList += "-menu $menuID"
-
-        # Run QFILHelper in the current window and wait
-        Start-Process -FilePath $executablePath -ArgumentList $argumentList -WorkingDirectory $workingDirectory -NoNewWindow -Wait
-
-        # Move port_trace.txt
-        if (Test-Path -Path $PortTracePath)
+        Write-Log "Moving port trace to logs..." "Action"
+        if (-not (Test-Path -Path $LogsPath))
         {
-            Write-Log "Moving port trace to logs..." "Action"
-            if (-not (Test-Path -Path $LogsPath))
-            {
-                New-Item -ItemType Directory -Path $LogsPath | Out-Null
-            }
-            Move-Item -Path $PortTracePath -Destination "$LogsPath\${TimeStamp}_port_trace.txt" -Force
+            New-Item -ItemType Directory -Path $LogsPath | Out-Null
         }
+        Move-Item -Path $PortTracePath -Destination "$LogsPath\${TimeStamp}_port_trace.txt" -Force
+    }
 
-        # Move qpst/Errors/
-        if (Test-Path -Path $ErrorsPath)
+    # Move qpst/Errors/
+    if (Test-Path -Path $ErrorsPath)
+    {
+        $latestError = Get-ChildItem -Path $ErrorsPath -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($null -ne $latestError)
         {
-            $latestError = Get-ChildItem -Path $ErrorsPath -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-            if ($null -ne $latestError)
+            if (-not (Test-Path -Path $script:LogsPath))
             {
-                if (-not (Test-Path -Path $script:LogsPath))
-                {
-                    New-Item -ItemType Directory -Path $script:LogsPath | Out-Null
-                }
-                $destErrorLog = "$script:LogsPath\${script:TimeStamp}_qfilerror.log"
-                Move-Item -Path $latestError.FullName -Destination $destErrorLog -Force
-                Write-Log "Moved QFIL error log to: $destErrorLog" "Action"
+                New-Item -ItemType Directory -Path $script:LogsPath | Out-Null
             }
+            $destErrorLog = "$script:LogsPath\${script:TimeStamp}_qfilerror.log"
+            Move-Item -Path $latestError.FullName -Destination $destErrorLog -Force
+            Write-Log "Moved QFIL error log to: $destErrorLog" "Action"
         }
+    }
+}
+
+function Send-Firehose
+{
+    $saharaOutput = & $QSaharaServerPath -p "\\.\COM$ComPort" -s "13:`"$FirehoseTargetPath`"" 2>&1 | ForEach-Object { Write-Host $_; $_ }
+    $lastLine = $saharaOutput | Where-Object { $_ -match '\S' } | Select-Object -Last 1
+
+    if ($lastLine -match "Sahara protocol completed")
+    {
+        Write-Log "Sahara protocol completed successfully." "Success"
+        return $true
     }
     else
     {
-        Write-Log "QFILHelper.exe was not found at: $QFILHelper" "Error"
-        return
+        Write-Log "Sahara protocol failed: $lastLine" "Error"
+        return $false
     }
 }
 
 function QFIL-ShowInstructions
 {
     Write-Header "QFIL Instructions"
-
-    $comPort = Get-QualcommCOMPort
-    if ($null -eq $comPort)
-    {
-        Write-Log "Failed to detect COM port for EDL device." "Error"
-        return
-    }
-
-    Write-Host "1. QFIL Window will open shortly."
-    Write-Host "2. Select Port: ${cCyan}Qualcomm HS-USB QDLoader 9008 (COM$comPort)${cReset} and press OK"
-    Write-Host "3. Select Build Type: ${cCyan}Flat Build${cReset}"
-    Write-Host "4. Select Programmer > Browse... > ${cCyan}$FirehoseTargetPath${cReset}"
-    Write-Host "5. Bottom - Storage Type: ${cCyan}ufs${cReset}"
-    Write-Host "6. Top Menu - Tools > Partition Manager > OK"
-    Write-Host "7. Wait for ${cCyan}'Finish Get GPT'${cReset} in the status box."
-    Write-Log "If status box displays 'Download Fail:Sahara Fail', close QFIL, return here and press Enter, then reboot EDL and try again." "Warning"
-    Write-Host "8. In Partition Manager Window > Click ${cGreen}Save Partition File${cReset}"
-    Write-Host "9. Wait for ${cCyan}'Finish SavePartitionFile'${cReset} in status box."
-    Write-Host "10. Minimize or leave Partition Manager open."
-    Write-Host ""
     Write-Log "Once you have saved the partition file, return here and press Enter." "Action"
     Write-Log "When process is done, you will hear the beep sound." "Info"
-
-    [Console]::Beep(523, 150) # C5 tone for 150ms
-    [Console]::Beep(784, 300) # G5 tone for 300ms
 }
 
 function Post-Steps
@@ -186,14 +98,6 @@ function Post-Steps
     Write-Header "Post Steps"
     Write-Log "Your device will not automatically reboot." "Info"
     Write-Log "Hold ${cYellow}Power Button${cReset} for 10 seconds to reboot to system." "Info"
-}
-
-function Clean-QualcommAppdata
-{
-    if (Test-Path -Path $QfilAppdataPath)
-    {
-        Remove-Item -Path "$QfilAppdataPath\*" -Recurse -Force -ErrorAction SilentlyContinue
-    }
 }
 
 function Select-BackupFolder
@@ -413,28 +317,22 @@ function Backup-Device
         return
     }
 
+    $ComPort = Get-QualcommCOMPort
     QFIL-ShowInstructions
 
-    # Start QFIL
-    Clean-QualcommAppdata
-    $qfilProc = Start-Process -FilePath $QFILPath -PassThru
+    # Start Sahara to load programmer
+    <#if(-not (Send-Firehose))
+    {
+        return
+    }#>
+
     Wait-Continue "start userdata backup..."
 
-    if (-not $qfilProc -or $qfilProc.HasExited)
-    {
-        Write-Log "QFIL is not running. Exiting process..." "Error"
-        Wait-Continue
-        return
-    }
-
     # Start the automated helper
-    Start-QFILHelper "3"
-
-    # Stop QFIL
-    if ($null -ne $qfilProc -and -not $qfilProc.HasExited)
-    {
-        Stop-Process -InputObject $qfilProc -Force -ErrorAction SilentlyContinue
-    }
+    BackupLUNs
+    Move-Log
+    [Console]::Beep(523, 150) # C5 tone for 150ms
+    [Console]::Beep(784, 300) # G5 tone for 300ms
 
     # Post-process organization
     $newBackup = Get-ChildItem -Path $BackupPath -Directory -Filter "Backup-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
@@ -491,39 +389,27 @@ function Restore-Backup
         return
     }
 
+    $ComPort = Get-QualcommCOMPort
     QFIL-ShowInstructions
 
-    # Start QFIL to load programmer
-    Clean-QualcommAppdata
-    $qfilProc = Start-Process -FilePath $QFILPath -PassThru
-    Wait-Continue "start restore userdata..."
-
-    if (-not $qfilProc -or $qfilProc.HasExited)
+    # Start Sahara to load programmer
+    if(-not (Send-Firehose))
     {
-        Write-Log "QFIL is not running. Exiting process..." "Error"
-        Wait-Continue
         return
     }
 
-    # Start the automated helper
-    Start-QFILHelper "5"
+    Wait-Continue "start restore userdata..."
 
-    # Stop QFIL
-    if ($null -ne $qfilProc -and -not $qfilProc.HasExited)
-    {
-        Stop-Process -InputObject $qfilProc -Force -ErrorAction SilentlyContinue
-    }
+    # Start the automated helper
+    Move-Log
+    [Console]::Beep(523, 150) # C5 tone for 150ms
+    [Console]::Beep(784, 300) # G5 tone for 300ms
 
     Wait-Continue
 }
 
 function Show-BackupRestoreMenu
 {
-    if (Check-BackupPrerequisites)
-    {
-        Clear-Host
-    }
-
     $menuQuit = $false
     while (-not $menuQuit)
     {
