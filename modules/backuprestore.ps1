@@ -17,6 +17,12 @@ $ComPort = $null
 $BackupPath = Join-Path $ProjectRoot "tools\qpst"
 $ErrorsPath = Join-Path $ProjectRoot "tools\qpst\Errors"
 
+# Define Kernel32 API for reliable NTFS compressed size calculation
+if (-not ([System.Management.Automation.PSTypeName]'Native.Win32').Type)
+{
+    Add-Type -MemberDefinition '[DllImport("kernel32.dll", EntryPoint="GetCompressedFileSizeW", CharSet=CharSet.Unicode)] public static extern uint GetCompressedFileSize(string lpFileName, out uint lpFileSizeHigh);' -Name 'Win32' -Namespace 'Native'
+}
+
 function Get-QualcommCOMPort
 {
     Write-Log "Scanning for Qualcomm Emergency Download (EDL) device..." "Info"
@@ -227,6 +233,117 @@ function Test-BackupSuccess([string]$FolderPath)
     return $true
 }
 
+function Folder-Compression([string]$FolderPath)
+{
+    if (-not (Test-Path -Path $FolderPath))
+    {
+        Write-Log "Target path '${cYellow}$FolderPath${cReset}' does not exist." "Error"
+        return
+    }
+
+    Write-Header "Folder Compression"
+    Write-Log "Using Windows native ${cCyan}LZX${cReset} algorithm to compress folder for maximum space savings up to ${cGreen}60%${cReset}." "Info"
+    Write-Log "Files stay as files, ${cGreen}negligible CPU impact${cReset} during decompression." "Info"
+    Write-Log "This process takes at least ${cGreen}10 minutes${cReset}." "Warning"
+    Write-Host ""
+
+    Write-Host "You are about to compress folder '${cCyan}${FolderPath}${cReset}'"
+    $confirmation = Read-Host "To proceed, type ${cYellow}'YES'${cReset} and press Enter"
+
+    if ($confirmation -eq 'YES')
+    {
+        Write-Host ""
+        Write-Log "Scanning target directory..." "Info"
+
+        Write-Progress -Activity "Scanning Files" -Status "Collecting file inventory..."
+        $fileList = Get-ChildItem -Path $FolderPath -Recurse -File -Force -ErrorAction SilentlyContinue
+        Write-Progress -Activity "Scanning Files" -Completed
+
+        $totalFiles = $fileList.Count
+        if ($totalFiles -eq 0)
+        {
+            Write-Log "Folder is empty or contains no readable files." "Warning"
+            return
+        }
+
+        $sizeBeforeBytes = ($fileList | Measure-Object -Property Length -Sum).Sum
+        $sizeBeforeGB = [math]::Round($sizeBeforeBytes / 1GB, 2)
+
+        Write-Log "Original size: ${cCyan}${sizeBeforeGB} GB${cReset} across ${cCyan}${totalFiles}${cReset} files." "Info"
+        Write-Log "Compressing folder using ${cCyan}LZX${cReset}..." "Action"
+
+        $processedCount = 0
+        & compact.exe /c /s /a /i /exe:lzx "$FolderPath\*" 2>&1 | ForEach-Object {
+            $line = $_.ToString()
+
+            # Match lines that indicate a file has been processed (contains compression ratio and [OK]/[ERR])
+            if ($line -match ':\s*\d+\s+\[(OK|ERR)\]')
+            {
+                $processedCount++
+                $percent = [math]::Min([math]::Round(($processedCount / $totalFiles) * 100), 100)
+                Write-Progress -Activity "Compressing Files (LZX)" -Status "Processing: [$processedCount/$totalFiles] files" -PercentComplete $percent
+            }
+        }
+        Write-Progress -Activity "Compressing Files (LZX)" -Completed
+
+        # Calculate post-compression space stats
+        Write-Progress -Activity "Calculating Space Savings" -Status "Measuring compressed footprint..."
+
+        $sizeAfterBytes = [long]0
+        foreach ($file in $fileList)
+        {
+            $high = 0
+            $low = [Native.Win32]::GetCompressedFileSize($file.FullName, [ref]$high)
+
+            if ($low -eq 0xFFFFFFFF -and ([System.Runtime.InteropServices.Marshal]::GetLastWin32Error() -ne 0))
+            {
+                $sizeAfterBytes += $file.Length
+            }
+            else
+            {
+                $fileCompressedSize = ([long]$high -shl 32) -bor [long]$low
+                $sizeAfterBytes += $fileCompressedSize
+            }
+        }
+
+        Write-Progress -Activity "Calculating Space Savings" -Completed
+
+        # Metrics calculation
+        $sizeAfterGB = [math]::Round($sizeAfterBytes / 1GB, 2)
+        $savedBytes = $sizeBeforeBytes - $sizeAfterBytes
+        $savedGB = [math]::Round($savedBytes / 1GB, 2)
+
+        $ratio = 0
+        if ($sizeBeforeBytes -gt 0)
+        {
+            $ratio = [math]::Round(($savedBytes / $sizeBeforeBytes) * 100, 2)
+        }
+
+        Write-Host ""
+        Write-Log "------------------------------------------------" "Info"
+        Write-Log "Size Before: ${cYellow}${sizeBeforeGB} GB${cReset}" "Info"
+        Write-Log "Size After:  ${cGreen}${sizeAfterGB} GB${cReset}" "Info"
+
+        if ($LASTEXITCODE -eq 0)
+        {
+            Write-Log "Compression complete." "Success"
+            Write-Log "Total Saved: ${cCyan}${savedGB} GB${cReset} (${cGreen}${ratio}%${cReset})" "Success"
+        }
+        else
+        {
+            Write-Log "Compression finished with warnings/errors (Exit Code: ${cRed}$LASTEXITCODE${cReset})." "Warning"
+            Write-Log "Total Saved: ${cCyan}${savedGB} GB${cReset} (${cYellow}${ratio}%${cReset})" "Info"
+        }
+        Write-Log "------------------------------------------------" "Info"
+    }
+    else
+    {
+        Write-Log "Folder compression ${cRed}cancelled${cReset} by user." "Warning"
+    }
+
+    Play-BeepBeep
+}
+
 function Backup-Device
 {
     Write-Header "Backup Device"
@@ -277,6 +394,7 @@ function Backup-Device
     elseif (Test-BackupSuccess -FolderPath $newBackup.FullName)
     {
         Write-Log "Detected new backup at: ${cCyan}$( $newBackup.FullName )${cReset}" "Success"
+        Folder-Compression $newBackup.FullName
     }
     else
     {
@@ -336,6 +454,7 @@ function Show-BackupRestoreMenu
         Write-Header "Backup/Restore Menu"
         Write-Host " [${cCyan}1${cReset}] Backup Device"
         Write-Host " [${cCyan}2${cReset}] Restore Device"
+        Write-Host " [${cCyan}3${cReset}] Compress Backup"
         Write-Host ""
         Write-Host " [${cCyan}r${cReset}] Reboot"
         Write-Host " [${cCyan}0${cReset}] Back to Main Menu"
@@ -354,6 +473,13 @@ function Show-BackupRestoreMenu
                 {
                     Restore-Backup $targetBackup
                     Post-Steps
+                }
+            }
+            "3" {
+                $targetFolder = Select-BackupFolder
+                if ($null -ne $targetFolder)
+                {
+                    Folder-Compression $targetFolder
                 }
             }
             "r" {

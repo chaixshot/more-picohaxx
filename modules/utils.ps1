@@ -59,7 +59,7 @@ function Clean-LogFormat
         # Remove ANSI escape sequences (colors, styles, etc.)
         # This covers $cReset, $cCyan, $cYellow, $cGreen, $cMagenta, $cRed, $cBold, $cGray, $cWhite
         $esc = [char]27
-        $pattern = "$([char]27)\[[0-9;]*[a-zA-Z]"
+        $pattern = "$( [char]27 )\[[0-9;]*[a-zA-Z]"
 
         $cleanContent = $content -replace $pattern, ""
         $cleanContent | Set-Content $LogFile -Force
@@ -150,7 +150,10 @@ function Wait-FastbootMode([int]$Timeout = 100)
             }
             Start-Sleep -Milliseconds 100
         }
-        if ($skipped) { break }
+        if ($skipped)
+        {
+            break
+        }
     }
     Write-Host ""
     return $deviceDetected
@@ -188,7 +191,10 @@ function Wait-EdlMode([int]$Timeout = 100)
             }
             Start-Sleep -Milliseconds 100
         }
-        if ($skipped) { break }
+        if ($skipped)
+        {
+            break
+        }
     }
     Write-Host ""
     return $deviceDetected
@@ -225,7 +231,10 @@ function Wait-AdbMode([int]$Timeout = 100)
             }
             Start-Sleep -Milliseconds 100
         }
-        if ($skipped) { break }
+        if ($skipped)
+        {
+            break
+        }
     }
     Write-Host ""
     return $deviceDetected
@@ -289,7 +298,7 @@ function Perform-Reboot
     Write-Host " [${cCyan}1${cReset}] Boot to SYSTEM"
     Write-Host " [${cCyan}2${cReset}] Boot to FASTBOOT"
     Write-Host " [${cCyan}3${cReset}] Boot to recovery"
-    if(-not (IsFastbootMode))
+    if (-not (IsFastbootMode))
     {
         Write-Host " [${cCyan}4${cReset}] Boot to EDL"
     }
@@ -357,6 +366,12 @@ function Perform-Reboot
             ADB-To-Edl
         }
     }
+}
+
+function Play-BeepBeep
+{
+    [Console]::Beep(523, 150) # C5 tone for 150ms
+    [Console]::Beep(784, 300) # G5 tone for 300ms
 }
 
 function Warning-ADB
