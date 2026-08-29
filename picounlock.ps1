@@ -19,15 +19,14 @@
     Prerequisites:
     - adb.exe and fastboot.exe must be in your PATH or the script's directory.
     - qdl.exe (from https://github.com/linux-msm/qdl) must be in the script's directory.
-    - python must be installed and in your PATH.
     - The 'more-picohaxx.py' script must be in the same directory.
     - Magisk4Pico.apk must be in the .\tools directory for rooting.
 #>
 
 # --- Script Configuration ---
-$PicoHaxxPyScript = ".\more-picohaxx.py"
 $DRIVER = ".\tools\driver"
 $LogsPath = ".\logs"
+$DeviceSerial = ".\serial_number.txt"
 
 $FirehoseDDR4Path = (Get-Item ".\tools\firehoses\prog_firehose_ddr.elf").FullName
 $FirehoseDDR5Path = (Get-Item ".\tools\firehoses\prog_firehose_lite.elf").FullName
@@ -71,16 +70,6 @@ function Check-Prerequisites
     if (-not (Test-Path $QDL))
     {
         Write-Log "${cYellow}qdl.exe${cReset} not found. Please place it in the script directory." "Error"
-        $isReady = $false
-    }
-    if (-not (Test-CommandExists "python"))
-    {
-        Write-Log "${cCyan}python${cReset} not found. Please install Python and add it to your ${cCyan}PATH${cReset}." "Error"
-        $isReady = $false
-    }
-    if (-not (Test-Path $PicoHaxxPyScript))
-    {
-        Write-Log "'${cYellow}$PicoHaxxPyScript${cReset}' not found in the script directory." "Error"
         $isReady = $false
     }
     if (-not (Test-Path $AblPath))
@@ -166,10 +155,10 @@ function Generate-UnlockCode
         Write-Log "Failed to get a valid serial number from the device. Is it connected and authorized?" "Error"
         return
     }
-    Write-Log "Device serial number: ${cGreen}$serialNumber${cReset}" "Success"
 
-    # Modify the python script to use the correct serial
-    (Get-Content $PicoHaxxPyScript) -replace 'pico_unlock\(\d+\)', "pico_unlock($serialNumber)" | Set-Content $PicoHaxxPyScript
+    $serialNumber | Set-Content -Path $DeviceSerial -Encoding Ascii
+    Write-Log "Device serial number saved to ${cCyan}'$DeviceSerial'${cReset}." "Info"
+    Write-Log "Device serial number: ${cGreen}$serialNumber${cReset}" "Success"
 }
 
 function Flash-EngineeringAbl
@@ -334,6 +323,7 @@ function Show-UnlockFinalInstructions
     Write-Log "If device does not boot normally, hold ${cYellow}Vol Up + Power${cReset} until the robot shows up as recovery mode." "Warning"
     Write-Log "In recovery mode, hold ${cYellow}Power${cReset} first then press ${cYellow}Vol Up${cReset} to access the menu." "Warning"
     Write-Log "Use ${cYellow}Vol Up and Vol Down${cReset} to navigate, and press ${cYellow}Power${cReset} to select ${cCyan}Wipe data/factory reset${cReset}." "Warning"
+    Wait-Continue
 
     if (-not (Wait-FastbootMode 100))
     {
@@ -581,6 +571,7 @@ function Show-LockFinalInstructions
     Write-Log "If device does not boot to recovery mode for factory reset, hold ${cYellow}Vol Up + Power${cReset} until the robot shows up." "Warning"
     Write-Log "In recovery mode, hold ${cYellow}Power${cReset} first then press ${cYellow}Vol Up${cReset} to access the menu." "Warning"
     Write-Log "Use ${cYellow}Vol Up and Vol Down${cReset} to navigate, and press ${cYellow}Power${cReset} to select ${cCyan}Factory Reset${cReset}." "Warning"
+    Wait-Continue
 
     if (-not (Wait-FastbootMode 100))
     {

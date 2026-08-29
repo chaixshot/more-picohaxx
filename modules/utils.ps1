@@ -270,13 +270,38 @@ function Select-Firehose
 
 function Invoke-PicoHaxxScript
 {
-    # Run the python script and capture the unlock command
-    $unlockCommand = (python $PicoHaxxPyScript | Select-String -Pattern "fastboot oem pico").Line
-    if (-not $unlockCommand)
+    if (Test-Path $DeviceSerial)
     {
-        Write-Log "Failed to generate unlock code using the ${cCyan}python${cReset} script." "Error"
+        $Serial = [long](Get-Content -Path $DeviceSerial -Raw).Trim()
+    }
+    else
+    {
+        Write-Log "Serial number not provided and '${DeviceSerial}' not found." "Error"
         return $null
     }
+
+    $key = "0XD9J6FB3ATQIHNM46XYZZZOPQRSTUVWXYZ"
+    $val = [int64]$Serial -band 0xF7F3F37F
+
+    $encoded_serial = ""
+    if ($val -eq 0)
+    {
+        $encoded_serial = $key[0]
+    }
+    else
+    {
+        $encoded_chars = New-Object System.Collections.Generic.List[char]
+        while ($val -gt 0)
+        {
+            $index = $val -band 0xF
+            $encoded_chars.Add($key[[int]$index])
+            $val = [math]::Floor($val / 16)
+        }
+        $encoded_chars.Reverse()
+        $encoded_serial = -join $encoded_chars
+    }
+
+    $unlockCommand = "fastboot oem pico$encoded_serial unlock"
     Write-Log "Generated Unlock Command: ${cCyan}$unlockCommand${cReset}" "Success"
     Write-Host ""
 
@@ -286,6 +311,12 @@ function Invoke-PicoHaxxScript
 function Execute-UnlockCommand
 {
     $unlockCmd = Invoke-PicoHaxxScript
+    if (-not $unlockCmd)
+    {
+        Write-Log "Unlock command generation failed. Please run 'Generate UnlockCode' first." "Error"
+        return $false
+    }
+
     Write-Log "Executing commands: ${cCyan}$unlockCmd${cReset}" "Action"
     $cmdToRun = "& " + ($unlockCmd -replace 'fastboot', "`"$FASTBOOT`"")
     Invoke-Expression $cmdToRun

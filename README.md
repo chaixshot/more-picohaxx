@@ -25,7 +25,6 @@ This tool now includes a built-in **Backup/Restore** suite (Option `b` in the ma
 
 ## Prerequisites
 *   **Windows PC**: The automation script is written in PowerShell.
-*   **Python**: Required for the unlock code generation logic (`more-picohaxx.py`).
 *   **Qualcomm Drivers**: `QDLoader 9008` drivers. If not installed, use the provided script in `tools/qdl-driver/`.
 *   **QPST / QFIL**: Required for the advanced Backup and Restore features. The script can help you install this from `tools/qpst/`.
 *   **Pico Device**: Pico 4, Pico 4 Pro, or Pico Neo 3 with **USB Debugging** enabled.
