@@ -108,18 +108,25 @@ function Check-Prerequisites
                 Write-Log "Driver installation script not found at '${cYellow}$installScript${cReset}'." "Error"
                 $isReady = $false
             }
-
-            # Start the install script elevated
-            Write-Log "Launching driver installer..." "Action"
-            Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$installScript`"" -Verb RunAs -Wait
-
-            Write-Log "Driver installation process finished. Re-checking for driver..." "Info"
-            if (-not ((pnputil /enum-drivers) -join "`n" | Select-String -Pattern $driverPattern -Quiet))
+            else
             {
-                Write-Log "Driver still not found. Please run '${cYellow}$installScript${cReset}' manually as ${cCyan}Administrator${cReset} and then re-run this script." "Error"
-                $isReady = $false
+                # Start the install script elevated
+                Write-Log "Launching driver installer..." "Action"
+                Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$installScript`"" -NoNewWindow -Wait
+
+                Write-Log "Driver installation process finished. Re-checking for driver..." "Info"
+
+                $recheckDrivers = (pnputil /enum-drivers) -join "`n"
+                if ($recheckDrivers -notmatch $targetDrivers)
+                {
+                    Write-Log "Driver still not found. Please run '${cYellow}$installScript${cReset}' manually as ${cCyan}Administrator${cReset} and then re-run this script." "Error"
+                    $isReady = $false
+                }
+                else
+                {
+                    Write-Log "Driver successfully installed." "Success"
+                }
             }
-            Write-Log "Driver successfully installed." "Success"
         }
         else
         {
@@ -585,7 +592,7 @@ function Show-LockFinalInstructions
 
 # --- Main Script Execution ---
 
-if (-not (Test-Path $LogsPath ))
+if (-not (Test-Path $LogsPath))
 {
     New-Item -ItemType Directory -Path $LogsPath  | Out-Null
 }
@@ -666,6 +673,18 @@ finally
 {
     Write-Header "Exited"
 
-    try { Stop-Transcript } catch {}
-    try { Clean-LogFormat -LogFile $LogFile } catch {}
+    try
+    {
+        Stop-Transcript
+    }
+    catch
+    {
+    }
+    try
+    {
+        Clean-LogFormat -LogFile $LogFile
+    }
+    catch
+    {
+    }
 }
