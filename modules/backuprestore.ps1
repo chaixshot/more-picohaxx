@@ -11,17 +11,11 @@
 # --- Backup & Restore Functions ---
 
 $ProjectRoot = Split-Path -Path $PSScriptRoot -Parent
-$QPSTInstaller = Join-Path $ProjectRoot "tools\qpst\QPST Tool v2.7.496.exe"
 $QSaharaServerPath = Join-Path $ProjectRoot "tools\qpst\QSaharaServer.exe"
-$QFILHelper = Join-Path $ProjectRoot "tools\qpst\QFILHelper.exe"
 $ComPort = $null
 
 $BackupPath = Join-Path $ProjectRoot "tools\qpst"
-$TMPPath = Join-Path $ProjectRoot "tools\qpst\TMP"
 $ErrorsPath = Join-Path $ProjectRoot "tools\qpst\Errors"
-$PortTracePath = Join-Path $ProjectRoot ".\port_trace.txt"
-$FlashBackupName = ""
-$FlashPath = Join-Path $BackupPath "Flash"
 
 function Get-QualcommCOMPort
 {
@@ -40,39 +34,14 @@ function Get-QualcommCOMPort
     return $null
 }
 
-function Move-Log{
-    # Move port_trace.txt
-    if (Test-Path -Path $PortTracePath)
-    {
-        Write-Log "Moving port trace to logs..." "Action"
-        if (-not (Test-Path -Path $LogsPath))
-        {
-            New-Item -ItemType Directory -Path $LogsPath | Out-Null
-        }
-        Move-Item -Path $PortTracePath -Destination "$LogsPath\${TimeStamp}_port_trace.txt" -Force
-    }
-
-    # Move qpst/Errors/
-    if (Test-Path -Path $ErrorsPath)
-    {
-        $latestError = Get-ChildItem -Path $ErrorsPath -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-        if ($null -ne $latestError)
-        {
-            if (-not (Test-Path -Path $script:LogsPath))
-            {
-                New-Item -ItemType Directory -Path $script:LogsPath | Out-Null
-            }
-            $destErrorLog = "$script:LogsPath\${script:TimeStamp}_qfilerror.log"
-            Move-Item -Path $latestError.FullName -Destination $destErrorLog -Force
-            Write-Log "Moved QFIL error log to: $destErrorLog" "Action"
-        }
-    }
-}
-
 function Send-Firehose
 {
+    Write-Log "Sending firehose with QSaharaServer..." "Info"
+    Write-Log "If process stuck at here, reboot EDL and try again." "Info"
+
     $saharaOutput = & $QSaharaServerPath -p "\\.\COM$ComPort" -s "13:`"$FirehoseTargetPath`"" 2>&1 | ForEach-Object { Write-Host $_; $_ }
     $lastLine = $saharaOutput | Where-Object { $_ -match '\S' } | Select-Object -Last 1
+    Write-Host ""
 
     if ($lastLine -match "Sahara protocol completed")
     {
@@ -82,15 +51,11 @@ function Send-Firehose
     else
     {
         Write-Log "Sahara protocol failed: $lastLine" "Error"
+        Write-Log "Reboot EDL and try again." "Info"
+        Wait-Continue
+
         return $false
     }
-}
-
-function QFIL-ShowInstructions
-{
-    Write-Header "QFIL Instructions"
-    Write-Log "Once you have saved the partition file, return here and press Enter." "Action"
-    Write-Log "When process is done, you will hear the beep sound." "Info"
 }
 
 function Post-Steps
@@ -133,36 +98,11 @@ function Select-BackupFolder
     }
 
     $targetBackup = $backupFolders[[int]$selection - 1]
-    $script:FlashBackupName = $targetBackup.Name
 
-    # Check if a folder named 'Flash' already exists
-    if (Test-Path -Path $FlashPath)
-    {
-        Write-Log "Folder 'Flash' already exists in '$BackupPath'. Please remove or rename it before restoring." "Error"
-        return $null
-    }
-
-    Write-Log "Selected backup folder: ${cCyan}$FlashBackupName${cReset}" "Success"
-
-    # Rename the selected backup folder to 'Flash'
-    Write-Log "Renaming folder ${cCyan}'$FlashBackupName'${cReset} to ${cCyan}'Flash'${cReset}..." "Action"
-    Rename-Item -Path $targetBackup.FullName -NewName "Flash"
-
-    Write-Log "Flash folder prepared successfully via renaming." "Success"
+    Write-Log "Selected backup folder: ${cCyan}${targetBackup}${cReset}" "Success"
     Wait-Continue
 
-    return $targetBackup
-}
-
-# Rename Flash back to its original name
-function Restore-FlashBackupName
-{
-    if (Test-Path -Path $FlashPath)
-    {
-        Write-Log "Restoring ${cCyan}'Flash'${cReset} folder back to ${cCyan}'$FlashBackupName'${cReset}..." "Action"
-        Rename-Item -Path $FlashPath -NewName $FlashBackupName
-        Wait-Continue
-    }
+    return "$BackupPath\$targetBackup"
 }
 
 function Get-UserdataSizeGB
@@ -317,22 +257,15 @@ function Backup-Device
         return
     }
 
-    $ComPort = Get-QualcommCOMPort
-    QFIL-ShowInstructions
-
     # Start Sahara to load programmer
-    <#if(-not (Send-Firehose))
+    $ComPort = Get-QualcommCOMPort
+    if (-not (Send-Firehose))
     {
         return
-    }#>
-
-    Wait-Continue "start userdata backup..."
+    }
 
     # Start the automated helper
-    BackupLUNs
-    Move-Log
-    [Console]::Beep(523, 150) # C5 tone for 150ms
-    [Console]::Beep(784, 300) # G5 tone for 300ms
+    BackupUserData
 
     # Post-process organization
     $newBackup = Get-ChildItem -Path $BackupPath -Directory -Filter "Backup-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
@@ -355,17 +288,10 @@ function Backup-Device
         }
     }
 
-    # Delete TMP folder
-    if (Test-Path -Path $TMPPath)
-    {
-        Write-Log "Deleting ${cCyan}$( $TMPPath )${cReset} folder..." "Action"
-        Remove-Item -Path $TMPPath -Recurse -Force -ErrorAction SilentlyContinue
-    }
-
     Wait-Continue
 }
 
-function Restore-Backup
+function Restore-Backup([string]$FlashPath = "")
 {
     Write-Header "Restore Device"
     if (-not (Wait-UserConfirm))
@@ -389,21 +315,15 @@ function Restore-Backup
         return
     }
 
-    $ComPort = Get-QualcommCOMPort
-    QFIL-ShowInstructions
-
     # Start Sahara to load programmer
-    if(-not (Send-Firehose))
+    $ComPort = Get-QualcommCOMPort
+    if (-not (Send-Firehose))
     {
         return
     }
 
-    Wait-Continue "start restore userdata..."
-
     # Start the automated helper
-    Move-Log
-    [Console]::Beep(523, 150) # C5 tone for 150ms
-    [Console]::Beep(784, 300) # G5 tone for 300ms
+    FlashFirmware -FlashPath $FlashPath
 
     Wait-Continue
 }
@@ -429,10 +349,10 @@ function Show-BackupRestoreMenu
                 Post-Steps
             }
             "2" {
-                if (Select-BackupFolder)
+                $targetBackup = Select-BackupFolder
+                if ($null -ne $targetBackup)
                 {
-                    Restore-Backup
-                    Restore-FlashBackupName
+                    Restore-Backup $targetBackup
                     Post-Steps
                 }
             }

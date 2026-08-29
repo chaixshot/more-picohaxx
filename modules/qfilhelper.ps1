@@ -7,15 +7,16 @@
     Provides functions for backing up LUNs and individual partitions using fh_loader.exe.
 #>
 
-# --- Global Variables ---
-$WorkingDirectory = "tools\qpst"
-$FHLoaderPath = Join-Path $ProjectRoot "$WorkingDirectory\fh_loader.exe"
-$TMP = "$WorkingDirectory\TMP"
-$ErrorsPath = "$WorkingDirectory\Errors"
+# --- Local Variables ---
+$workingDirectory = "tools\qpst"
+$qpstTMP = "$workingDirectory\TMP"
+$errorsPath = "$workingDirectory\Errors"
+$script:portTracePath = Join-Path $ProjectRoot "port_trace.txt"
+$script:FHLoaderPath = Join-Path $ProjectRoot "$workingDirectory\fh_loader.exe"
 
-$galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
-$gsBackupDir = $null
-$geFailed = 0 # 0: NOERR, 1: FAILD, 2: ABORT
+$script:galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
+$script:gsBackupDir = $null
+$script:geFailed = 0 # 0: NOERR, 1: FAILD, 2: ABORT
 
 # --- Functions ---
 
@@ -40,11 +41,13 @@ function BackupLUNs
     $isExec = $false
 
     # Iterate through LUN 0 to 6
+    Display-DontInterrupt
     for ($iCnt = 0; $iCnt -le 6; $iCnt++)
     {
         $obPInfo = [PSCustomObject]@{
             iLUN = $iCnt
             iStart = 0
+            iEnd = 0
             sLabel = "complete"
             iSectors = 0
         }
@@ -56,7 +59,7 @@ function BackupLUNs
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
 
-        Write-Log "Backing up LUN $( $obPInfo.iLUN )..." "Action"
+        Write-Log "[$( $iCnt + 1 )/7] Backing up LUN '${cCyan}$( $obPInfo.iLUN )${cReset}'..." "Action"
         if (-not (ExecuteCommand $sCMDLine))
         {
             break
@@ -69,30 +72,401 @@ function BackupLUNs
     ProcessCompletedMsg -isExec $isExec
 }
 
-function ValidateCQF
+function BackupUserData
 {
-    # Locate fh_loader.exe
-    if (-not (Test-Path $script:FHLoaderPath))
+    if (-not (ValidateCQF))
     {
-        if (Test-Path "fh_loader.exe")
+        return
+    }
+
+    ResetLookUp
+    CreateBackupFolder
+
+    # Read GPT Headers with sorting enabled to allow looking up partition names
+    if (-not (ReadGPTHeaders -isTemp $false -isSort $true))
+    {
+        CleanUpBackupFolder
+        ProcessCompletedMsg -isExec $false
+        return
+    }
+
+    $obPInfo = [PSCustomObject]@{
+        sLabel = "userdata"
+        iLUN = $null
+        iStart = 0
+        iEnd = 0
+        iSectors = 0
+    }
+
+    $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
+
+    Display-DontInterrupt
+    Write-Log "Backing up partition '${cCyan}$( $obPInfo.sLabel )${cReset}'..." "Action"
+    if (-not (ExecuteCommand $sCMDLine))
+    {
+        CleanUpBackupFolder
+        ProcessCompletedMsg -isExec $false
+        return
+    }
+
+    CleanUpBackupFolder
+    ProcessCompletedMsg -isExec $true
+}
+
+function BackupPartitions
+{
+    if (-not (ValidateCQF))
+    {
+        return
+    }
+
+    ResetLookUp
+    CreateBackupFolder
+
+    # Read GPT Headers to populate $script:galoLookUp
+    if (-not (ReadGPTHeaders -isTemp $true))
+    {
+        CleanUpBackupFolder
+        ProcessCompletedMsg -isExec $false
+        return
+    }
+
+    $isExec = $false
+
+    # Iterate through LUN 0 to 6
+    Display-DontInterrupt
+    for ($iLUN = 0; $iLUN -le 6; $iLUN++)
+    {
+        foreach ($part in $script:galoLookUp[$iLUN])
         {
-            $script:FHLoaderPath = (Get-Item "fh_loader.exe").FullName
+            # Skip userdata partition as it's handled separately
+            if ($part.sLabel -eq "userdata")
+            {
+                continue
+            }
+
+            $obPInfo = [PSCustomObject]@{
+                iLUN = $part.iLUN
+                sLabel = $part.sLabel
+                iStart = $part.iStart
+                iEnd = $part.iEnd
+                iSectors = $part.iSectors
+            }
+
+            $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
+            Write-Log "Backing up partition '${cCyan}$( $obPInfo.sLabel )${cReset}' (LUN $( $obPInfo.iLUN ))..." "Action"
+
+            if (-not (ExecuteCommand $sCMDLine))
+            {
+                $script:geFailed = 1
+                break
+            }
+            $isExec = $true
         }
-        else
+
+        if ($script:geFailed -eq 1)
         {
-            Write-Log "fh_loader.exe not found. Please ensure QPST is installed." "Error"
-            return $false
+            break
         }
     }
 
-    # Create/Clean TMP folder
-    if (-not (Test-Path $TMP ))
+    CleanUpBackupFolder
+    ProcessCompletedMsg -isExec $isExec
+}
+
+function FlashFirmware([string]$FlashPath = "")
+{
+    if ( [string]::IsNullOrEmpty($FlashPath))
     {
-        New-Item -ItemType Directory -Path $TMP  | Out-Null
+        $FlashPath = Join-Path $ProjectRoot "$workingDirectory\Flash"
+    }
+
+    if (-not (ValidateCQF))
+    {
+        return
+    }
+
+    ResetLookUp
+
+    # Read GPT Headers to get partition layouts for each LUN
+    if (-not (ReadGPTHeaders -isTemp $true))
+    {
+        ProcessCompletedMsg -isExec $false
+        return
+    }
+
+    $flashList = LoadFileList -FlashPath $FlashPath
+    if ($flashList.Count -eq 0)
+    {
+        Write-Log "No firmware files found in '${cCyan}${FlashPath}${cCyan}'." "Error"
+        ProcessCompletedMsg -isExec $false
+        return
+    }
+
+    $isExec = $false
+    Display-DontInterrupt
+
+    # Flash LUNs
+    if (-not (FlashLUNs -flashList $flashList -FlashPath $FlashPath))
+    {
+        ProcessCompletedMsg -isExec $isExec
+        return
+    }
+    if ($flashList.LUNs.Count -gt 0)
+    {
+        $isExec = $true
+    }
+
+    # Flash GPTs
+    if (-not (FlashGPTs -flashList $flashList -FlashPath $FlashPath))
+    {
+        ProcessCompletedMsg -isExec $isExec
+        return
+    }
+    if ($flashList.GPTs.Count -gt 0)
+    {
+        $isExec = $true
+    }
+
+    # Re-read GPT headers before flashing partitions to ensure we use the new layout
+    if (-not (ReadGPTHeaders -isTemp $true -isSort $true))
+    {
+        ProcessCompletedMsg -isExec $isExec
+        return
+    }
+
+    # Flash Partitions
+    $totalParts = $flashList.Partitions.Count
+    for ($i = 0; $i -lt $totalParts; $i++)
+    {
+        $fileInfo = $flashList.Partitions[$i]
+        $obPInfo = [PSCustomObject]@{
+            sLabel = $fileInfo.sLabel
+            iLUN = $fileInfo.iLUN
+            iStart = 0
+            iEnd = 0
+            iSectors = 0
+        }
+
+        if (-not (LookUpNames $obPInfo))
+        {
+            Display-NotFound -obPInfo $obPInfo
+            continue
+        }
+
+        $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $FlashPath
+        Write-Log "[$( $i + 1 )/$totalParts] Flashing partition '${cCyan}$( $obPInfo.sLabel )${cReset}'..." "Action"
+        if (-not (ExecuteCommand $sCMDLine))
+        {
+            break
+        }
+        $isExec = $true
+    }
+
+    ProcessCompletedMsg -isExec $isExec
+}
+
+function LoadFileList([string]$FlashPath)
+{
+    $flashList = [PSCustomObject]@{
+        LUNs = @()
+        GPTs = @()
+        Partitions = @()
+        Count = 0
+    }
+
+    if (-not (Test-Path $FlashPath))
+    {
+        return $flashList
+    }
+
+    $files = Get-ChildItem -Path $FlashPath -Filter "*.bin"
+    foreach ($file in $files)
+    {
+        $name = $file.BaseName.ToLower()
+
+        # Determine if it needs renaming (Short2Long)
+        if (-not $name.StartsWith("lun"))
+        {
+            $name = Short2Long -fileName $file.Name -FlashPath $FlashPath
+            if ($null -eq $name)
+            {
+                continue
+            }
+        }
+
+        # Parse name: lunX_label.bin or lunX.bin or lunX_gpt.bin
+        if ($name -match "^lun(\d+)$" -or $name -match "^lun(\d+)_complete$")
+        {
+            $sLabel = if ( $name.Contains("_complete"))
+            {
+                "complete"
+            }
+            else
+            {
+                ""
+            }
+            $flashList.LUNs += [PSCustomObject]@{ iLUN = [int]$matches[1]; sLabel = $sLabel; Path = $file.FullName }
+            $flashList.Count++
+        }
+        elseif ($name -match "^lun(\d+)_gpt$" -or $name -match "^lun(\d+)_gpt_header$")
+        {
+            $sLabel = if ( $name.Contains("_gpt_header"))
+            {
+                "gpt_header"
+            }
+            else
+            {
+                "gpt"
+            }
+            $flashList.GPTs += [PSCustomObject]@{ iLUN = [int]$matches[1]; sLabel = $sLabel; Path = $file.FullName }
+            $flashList.Count++
+        }
+        elseif ($name -match "^lun(\d+)_(.+)$")
+        {
+            $flashList.Partitions += [PSCustomObject]@{
+                iLUN = [int]$matches[1]
+                sLabel = $matches[2]
+                Path = $file.FullName
+            }
+            $flashList.Count++
+        }
+    }
+
+    return $flashList
+}
+
+function FlashLUNs($flashList, [string]$FlashPath)
+{
+    $total = $flashList.LUNs.Count
+    for ($i = 0; $i -lt $total; $i++)
+    {
+        $lunFile = $flashList.LUNs[$i]
+        $obPInfo = [PSCustomObject]@{
+            sLabel = $lunFile.sLabel
+            iLUN = $lunFile.iLUN
+            iStart = 0
+            iEnd = 0
+            iSectors = 0
+        }
+
+        $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $FlashPath
+        Write-Log "[$( $i + 1 )/$total] Flashing LUN '${cCyan}$( $obPInfo.iLUN )${cReset}'..." "Action"
+        if (-not (ExecuteCommand $sCMDLine))
+        {
+            return $false
+        }
+    }
+    return $true
+}
+
+function FlashGPTs($flashList, [string]$FlashPath)
+{
+    $total = $flashList.GPTs.Count
+    for ($i = 0; $i -lt $total; $i++)
+    {
+        $gptFile = $flashList.GPTs[$i]
+        $obPInfo = [PSCustomObject]@{
+            sLabel = $gptFile.sLabel
+            iLUN = $gptFile.iLUN
+            iStart = 0
+            iEnd = 0
+            iSectors = 0
+        }
+
+        $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $FlashPath
+        Write-Log "[$( $i + 1 )/$total] Flashing GPT for LUN '${cCyan}$( $obPInfo.iLUN )${cReset}'..." "Action"
+        if (-not (ExecuteCommand $sCMDLine))
+        {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Short2Long($fileName, [string]$FlashPath)
+{
+    # Check all LUNs for a partition matching the filename
+    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
+    for ($i = 0; $i -le 6; $i++)
+    {
+        foreach ($part in $script:galoLookUp[$i])
+        {
+            if ($part.sLabel -eq $baseName)
+            {
+                $newName = "lun$( $i )_$( $baseName ).bin"
+                $oldPath = Join-Path $FlashPath $fileName
+                $newPath = Join-Path $FlashPath $newName
+
+                Write-Log "Renaming '${cCyan}$fileName${cReset}' to '${cCyan}$newName${cReset}'..." "Info"
+                try
+                {
+                    Rename-Item -Path $oldPath -NewName $newName -ErrorAction Stop
+                    return [System.IO.Path]::GetFileNameWithoutExtension($newName).ToLower()
+                }
+                catch
+                {
+                    Write-Log "Failed to rename '${cCyan}$fileName${cReset}': ${cCyan}$( $_.Exception.Message )${cReset}" "Error"
+                    return $null
+                }
+            }
+        }
+    }
+    return $null
+}
+
+function Display-NotFound($obPInfo)
+{
+    Write-Log "Partition '$( $obPInfo.sLabel )' not found on device (LUN $( $obPInfo.iLUN )). Skipping." "Warning"
+}
+
+function Display-DontInterrupt
+{
+    Write-Log "Do not disconnect the device and interrupt the process." "Warning"
+    Write-Log "In the ${cCyan}restore process${cReset}, getting interrupted might brick the device." "Warning"
+    Write-Log "In the ${cCyan}backup process${cReset}, getting interrupted might cause the backup data to collapse, but the device is fine." "Warning"
+}
+
+function LookUpNames($obPInfo)
+{
+    $targetLabel = $obPInfo.sLabel.ToLower()
+    $iLBound = 0
+    $iUBound = $script:galoLookUp.Count - 1
+
+    if ($null -ne $obPInfo.iLUN)
+    {
+        $iLBound = $obPInfo.iLUN
+        $iUBound = $obPInfo.iLUN
+    }
+
+    for ($i = $iLBound; $i -le $iUBound; $i++)
+    {
+        foreach ($part in $script:galoLookUp[$i])
+        {
+            if ($part.sLabel -eq $targetLabel)
+            {
+                # Update the object with found values
+                $obPInfo.iLUN = $part.iLUN
+                $obPInfo.iStart = $part.iStart
+                $obPInfo.iEnd = $part.iEnd
+                $obPInfo.iSectors = $part.iSectors
+                return $true
+            }
+        }
+    }
+    return $false
+}
+
+function ValidateCQF
+{
+    # Create/Clean TMP folder
+    if (-not (Test-Path $qpstTMP))
+    {
+        New-Item -ItemType Directory -Path $qpstTMP  | Out-Null
     }
     else
     {
-        Remove-Item -Path "$TMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path "$qpstTMP\*" -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     return $true
@@ -105,7 +479,7 @@ function ResetLookUp
 
 function CreateBackupFolder
 {
-    $script:gsBackupDir = "$WorkingDirectory\Backup-$TimeStamp\"
+    $script:gsBackupDir = "$workingDirectory\Backup-$script:TimeStamp\"
     New-Item -ItemType Directory -Path $script:gsBackupDir | Out-Null
 }
 
@@ -114,9 +488,10 @@ function ReadGPTHeaders([bool]$isTemp = $false, [bool]$isSort = $false)
     for ($iCnt = 0; $iCnt -le 6; $iCnt++)
     {
         $obPInfo = [PSCustomObject]@{
+            sLabel = "gpt_header"
             iLUN = $iCnt
-
             iStart = 0
+            iEnd = 0
             iSectors = 6
         }
 
@@ -191,7 +566,7 @@ function LoadGPTData($obPInfo, [bool]$isTemp, [bool]$isSort = $false)
     }
     catch
     {
-        Write-Log "Failed to parse GPT data for LUN $( $obPInfo.iLUN )" "Warning"
+        Write-Log "Failed to parse GPT data for LUN '${cCyan}$( $obPInfo.iLUN )${cReset}'" "Warning"
     }
     finally
     {
@@ -240,15 +615,25 @@ function CalcBounds($obPInfo)
     }
 }
 
-function BuildCommand($obPInfo, [bool]$isTemp)
+function BuildCommand($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string]$FlashPath = "")
 {
-    $sFileName = BuildFileName -obPInfo $obPInfo -isTemp $isTemp
+    $sFileName = BuildFileName -obPInfo $obPInfo -isTemp $isTemp -isFlash $isFlash -FlashPath $FlashPath
 
     $cmd = " --port=\\.\COM$ComPort"
-    $cmd += " --convertprogram2read --sendimage=$sFileName"
+    if ($isFlash)
+    {
+        $cmd += " --sendimage=$sFileName"
+    }
+    else
+    {
+        $cmd += " --convertprogram2read --sendimage=$sFileName"
+    }
     $cmd += " --start_sector=$( $obPInfo.iStart )"
     $cmd += " --lun=$( $obPInfo.iLUN )"
-    $cmd += " --num_sectors=$( $obPInfo.iSectors )"
+    if (-not $isFlash)
+    {
+        $cmd += " --num_sectors=$( $obPInfo.iSectors )"
+    }
     $cmd += " --noprompt --showpercentagecomplete --zlpawarehost=1 --memoryname=ufs"
 
     return $cmd
@@ -278,15 +663,15 @@ function ExecuteCommand([string]$sCMDLine)
                 $stdout -like "*ERROR: Could not write to*" -or
                 $stdout -like "*SAHARA mode!!*")
         {
-            Write-Log "fh_loader failed: $($stdout.Trim() )" "Error"
+            Write-Log "fh_loader failed: ${cCyan}$($stdout.Trim() )${cReset}" "Error"
             $script:geFailed = 1
 
             # Save error log
-            if (-not (Test-Path ErrorsPath))
+            if (-not (Test-Path $errorsPath))
             {
-                New-Item -ItemType Directory -Path ErrorsPath | Out-Null
+                New-Item -ItemType Directory -Path $errorsPath | Out-Null
             }
-            $errorFile = "$ErrorsPath\QFIL-Error-$TimeStamp.txt"
+            $errorFile = "$errorsPath\QFIL-Error-$script:TimeStamp.txt"
             Set-Content -Path $errorFile -Value ($stderr + "`n" + $stdout)
 
             return $false
@@ -294,7 +679,7 @@ function ExecuteCommand([string]$sCMDLine)
     }
     catch
     {
-        Write-Log "Exception during ExecuteCommand: $( $_.Exception.Message )" "Error"
+        Write-Log "Exception during ExecuteCommand: ${cCyan}$( $_.Exception.Message )${cReset}" "Error"
         $script:geFailed = 1
         return $false
     }
@@ -319,8 +704,9 @@ function CleanUpBackupFolder()
 
 function ProcessCompletedMsg([bool]$isExec = $true)
 {
-    [Console]::Beep(523, 150)
-    [Console]::Beep(784, 300)
+    [Console]::Beep(523, 150) # C5 tone for 150ms
+    [Console]::Beep(784, 300) # G5 tone for 300ms
+    Move-Log
 
     if ($script:geFailed -eq 1)
     {
@@ -338,16 +724,74 @@ function ProcessCompletedMsg([bool]$isExec = $true)
 }
 
 # --- Internal Helper ---
-function BuildFileName($obPInfo, [bool]$isTemp)
+function BuildFileName($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string]$FlashPath = "")
 {
-    $sDir = if ($isTemp)
+    $sDir = if ($isFlash)
     {
-        "$TMP\"
+        $FlashPath
+    }
+    elseif ($isTemp)
+    {
+        "$qpstTMP\"
     }
     else
     {
         $script:gsBackupDir
     }
-    $safeLabel = $obPInfo.sLabel -replace '[^a-zA-Z0-9_]', '_'
-    return Join-Path $sDir "lun$( $obPInfo.iLUN )_$( $safeLabel ).bin"
+
+    $sName = "lun$( $obPInfo.iLUN )"
+    if ($isFlash)
+    {
+        if (-not [string]::IsNullOrEmpty($obPInfo.sLabel))
+        {
+            $sName += "_$( $obPInfo.sLabel )"
+        }
+    }
+    else
+    {
+        if (-not [string]::IsNullOrEmpty($obPInfo.sLabel))
+        {
+            $safeLabel = $obPInfo.sLabel -replace '[^a-zA-Z0-9_]', '_'
+            $sName += "_$safeLabel"
+        }
+    }
+
+    return Join-Path $sDir "$sName.bin"
+}
+
+function Move-Log
+{
+    # Delete /tools/qpst/TMP folder
+    if (Test-Path -Path $qpstTMP)
+    {
+        Write-Log "Deleting ${cCyan}$( $qpstTMP )${cReset} folder..." "Action"
+        Remove-Item -Path $qpstTMP -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    # Move ./port_trace.txt
+    if (Test-Path -Path $PortTracePath)
+    {
+        Write-Log "Moving ${cCyan}$PortTracePath${cReset} to logs..." "Action"
+        if (-not (Test-Path -Path $LogsPath))
+        {
+            New-Item -ItemType Directory -Path $LogsPath | Out-Null
+        }
+        Move-Item -Path $PortTracePath -Destination "$LogsPath\${TimeStamp}_port_trace.txt" -Force
+    }
+
+    # Move ./tools/qpst/Errors/*.log
+    if (Test-Path -Path $ErrorsPath)
+    {
+        $latestError = Get-ChildItem -Path $ErrorsPath -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($null -ne $latestError)
+        {
+            if (-not (Test-Path -Path $script:LogsPath))
+            {
+                New-Item -ItemType Directory -Path $script:LogsPath | Out-Null
+            }
+            $destErrorLog = "$script:LogsPath\${script:TimeStamp}_qfilerror.log"
+            Move-Item -Path $latestError.FullName -Destination $destErrorLog -Force
+            Write-Log "Moved QFIL error log to: $destErrorLog" "Action"
+        }
+    }
 }
