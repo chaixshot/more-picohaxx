@@ -704,8 +704,7 @@ function CleanUpBackupFolder()
 
 function ProcessCompletedMsg([bool]$isExec = $true)
 {
-    [Console]::Beep(523, 150) # C5 tone for 150ms
-    [Console]::Beep(784, 300) # G5 tone for 300ms
+    Play-BeepBeep
     Move-Log
 
     if ($script:geFailed -eq 1)
