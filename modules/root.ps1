@@ -164,9 +164,9 @@ function Flash-Magisk
     # Find patched image
     $patchedImage = $null
 
-    if ($script:PatchedImagePath -and (Test-Path $script:PatchedImagePath))
+    if ($PatchedImagePath -and (Test-Path $PatchedImagePath))
     {
-        $patchedImage = Get-Item $script:PatchedImagePath
+        $patchedImage = Get-Item $PatchedImagePath
         Write-Log "Found patched image from last adb pull: ${cGreen}$( $patchedImage.FullName )${cReset}" "Success"
     }
     else

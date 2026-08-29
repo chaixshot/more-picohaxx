@@ -242,7 +242,7 @@ function Wait-AdbMode([int]$Timeout = 100)
 
 function Select-Firehose
 {
-    if ($null -eq $script:FirehoseTargetPath)
+    if ($null -eq $FirehoseTargetPath)
     {
         Write-Header "Select Firehose"
         Write-Host " [${cCyan}1${cReset}] Pico 4 / Pico Neo 3 (DDR 4)"

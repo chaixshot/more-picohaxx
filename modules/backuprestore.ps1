@@ -43,7 +43,7 @@ function Get-QualcommCOMPort
 function Send-Firehose
 {
     Write-Log "Sending firehose with QSaharaServer..." "Info"
-    Write-Log "If process stuck at here, reboot EDL and try again." "Info"
+    Write-Log "If the process is stuck here, it means EDL timed out. Reboot EDL and try again." "Warning"
 
     $saharaOutput = & $QSaharaServerPath -p "\\.\COM$ComPort" -s "13:`"$FirehoseTargetPath`"" 2>&1 | ForEach-Object { Write-Host $_; $_ }
     $lastLine = $saharaOutput | Where-Object { $_ -match '\S' } | Select-Object -Last 1
@@ -384,7 +384,7 @@ function Backup-Device
     }
 
     # Start Sahara to load programmer
-    $ComPort = Get-QualcommCOMPort
+    $script:ComPort = Get-QualcommCOMPort
     if (-not (Send-Firehose))
     {
         return
@@ -445,7 +445,7 @@ function Restore-Backup([string]$FlashPath = "")
     }
 
     # Start Sahara to load programmer
-    $ComPort = Get-QualcommCOMPort
+    $script:ComPort = Get-QualcommCOMPort
     if (-not (Send-Firehose))
     {
         return
