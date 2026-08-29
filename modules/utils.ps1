@@ -280,16 +280,28 @@ function Invoke-PicoHaxxScript
     Write-Log "Generated Unlock Command: ${cCyan}$unlockCommand${cReset}" "Success"
     Write-Host ""
 
-    # Create unlock command file
-    $instructions = @"
-$unlockCommand
-fastboot oem setenforce 0
-fastboot flashing unlock
-fastboot flashing unlock_critical
-"@
-    $instructions | Set-Content $Picounlock
-
     return $unlockCommand
+}
+
+function Execute-UnlockCommand
+{
+    $unlockCmd = Invoke-PicoHaxxScript
+    Write-Log "Executing commands: ${cCyan}$unlockCmd${cReset}" "Action"
+    $cmdToRun = "& " + ($unlockCmd -replace 'fastboot', "`"$FASTBOOT`"")
+    Invoke-Expression $cmdToRun
+
+    if ($LASTEXITCODE -eq 0)
+    {
+        Write-Log "Unlock command executed successfully." "Success"
+        return $true
+    }
+    else
+    {
+        Write-Log "Failed to execute unlock command." "Error"
+        Write-Log "Please make sure ${cYellow}Flash Engineering ABL${cReset} is successful." "Error"
+        Write-Log "And do not flash ${cYellow}Flash backup ABL${cReset}!" "Error"
+        return $false
+    }
 }
 
 function Perform-Reboot
