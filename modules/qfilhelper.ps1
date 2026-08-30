@@ -10,7 +10,7 @@
 # --- Local Variables ---
 $workingDirectory = "tools\qpst"
 $qpstTMP = "$workingDirectory\TMP"
-$portTrace = Join-Path $ProjectRoot "port_trace.txt"
+$portTrace = "$LogsPath\${TimeStamp}_port_trace.txt"
 $fhLoader = Join-Path $ProjectRoot "$workingDirectory\fh_loader.exe"
 
 $galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
@@ -681,7 +681,7 @@ function BuildCommand($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string]
     {
         $cmd += " --num_sectors=$( $obPInfo.iSectors )"
     }
-    $cmd += " --noprompt --showpercentagecomplete --zlpawarehost=1 --memoryname=ufs --loglevel=0"
+    $cmd += " --noprompt --showpercentagecomplete --zlpawarehost=1 --memoryname=ufs --loglevel=0 --porttracename=${portTrace}"
 
     return $cmd
 }
@@ -758,17 +758,6 @@ function ProcessCompleted([bool]$isExec = $true)
     {
         Write-Log "Deleting ${cCyan}$( $qpstTMP )${cReset} folder..." "Action"
         Remove-Item -Path $qpstTMP -Recurse -Force -ErrorAction SilentlyContinue
-    }
-
-    # Move to ./logs/port_trace.txt
-    if (Test-Path -Path $portTrace)
-    {
-        Write-Log "Moving ${cCyan}$portTrace${cReset} to logs..." "Action"
-        if (-not (Test-Path -Path $LogsPath))
-        {
-            New-Item -ItemType Directory -Path $LogsPath | Out-Null
-        }
-        Move-Item -Path $portTrace -Destination "$LogsPath\${TimeStamp}_port_trace.txt" -Force
     }
 
     if ($geFailed -eq 1)
