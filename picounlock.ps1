@@ -86,6 +86,52 @@ function Check-Prerequisites
         $isReady = $false
     }
 
+    # Detect legacy/conflicting qdl_winusb.inf driver
+    $allDrivers = pnputil /enum-drivers
+    $qdlDrivers = $allDrivers | Select-String -Pattern "qdl_winusb\.inf" -Context 1,0
+    if ($qdlDrivers)
+    {
+        Write-Log "Found legacy/conflicting driver '${cYellow}qdl_winusb.inf${cReset}' installed." "Warning"
+        Write-Log "This driver is known to cause issues with current EDL flashing tools." "Info"
+        Write-Host "Do you want to ${cRed}delete${cReset} it? (${cCyan}y${cReset}/n): " -NoNewline
+        $deleteChoice = Read-Host
+        if ($deleteChoice -eq 'y')
+        {
+            foreach ($match in $qdlDrivers)
+            {
+                # Extract oemXX.inf from the line above the match
+                $publishedName = ($match.Context.PreContext[0] -replace "Published Name:\s+", "").Trim()
+                if ($publishedName -match "oem\d+\.inf")
+                {
+                    Write-Log "Deleting driver ${cCyan}$publishedName${cReset} (qdl_winusb.inf)..." "Action"
+                    pnputil /delete-driver $publishedName /uninstall /force | Out-Null
+                }
+            }
+
+            Write-Log "Rescanning hardware devices to rebind correct driver..." "Action"
+            pnputil /scan-devices | Out-Null
+
+            # Verification step
+            Write-Host ""
+            $verifyDrivers = pnputil /enum-drivers
+            if ($verifyDrivers -match "qdl_winusb\.inf")
+            {
+                Write-Log "Failed to completely remove '${cYellow}qdl_winusb.inf${cReset}'. Manual removal may be required." "Error"
+                Write-Log "Use DriverStoreExplorer (https://github.com/lostindark/driverstoreExplorer) to proceed." "Info"
+                $isReady = $false
+            }
+            else
+            {
+                Write-Log "'${cYellow}qdl_winusb.inf${cReset}' has been removed." "Success"
+            }
+
+            Wait-Continue
+        }
+        else{
+            $isReady = $false
+        }
+    }
+
     # Check for EDL driver and offer to install it
     $targetDrivers = "qcser\.inf|android_winusb\.inf"
     $installedDrivers = (pnputil /enum-drivers) -join "`n"
@@ -124,6 +170,9 @@ function Check-Prerequisites
                 {
                     Write-Log "Driver successfully installed." "Success"
                 }
+
+                Write-Log "Rescanning hardware devices to rebind correct driver..." "Action"
+                pnputil /scan-devices | Out-Null
             }
         }
         else
