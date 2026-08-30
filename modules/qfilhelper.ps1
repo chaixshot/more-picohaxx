@@ -10,7 +10,6 @@
 # --- Local Variables ---
 $workingDirectory = "tools\qpst"
 $qpstTMP = "$workingDirectory\TMP"
-$errorsPath = "$workingDirectory\Errors"
 $portTrace = Join-Path $ProjectRoot "port_trace.txt"
 $fhLoader = Join-Path $ProjectRoot "$workingDirectory\fh_loader.exe"
 
@@ -34,7 +33,7 @@ function BackupLUNs
     if (-not (ReadGPTHeaders -isTemp $true))
     {
         CleanUpBackupFolder
-        ProcessCompletedMsg -isExec $false
+        ProcessCompleted -isExec $false
         return
     }
 
@@ -74,7 +73,7 @@ function BackupLUNs
 
     Write-Progress -Activity "Backing up LUNs" -Completed
     CleanUpBackupFolder
-    ProcessCompletedMsg -isExec $isExec
+    ProcessCompleted -isExec $isExec
 }
 
 function BackupUserData
@@ -91,7 +90,7 @@ function BackupUserData
     if (-not (ReadGPTHeaders -isTemp $false -isSort $true))
     {
         CleanUpBackupFolder
-        ProcessCompletedMsg -isExec $false
+        ProcessCompleted -isExec $false
         return
     }
 
@@ -107,7 +106,7 @@ function BackupUserData
     {
         Write-Log "Failed to resolve LUN and sectors for partition 'userdata'." "Error"
         CleanUpBackupFolder
-        ProcessCompletedMsg -isExec $false
+        ProcessCompleted -isExec $false
         return
     }
 
@@ -120,13 +119,13 @@ function BackupUserData
     {
         Write-Progress -Activity "Backing up UserData" -Completed
         CleanUpBackupFolder
-        ProcessCompletedMsg -isExec $false
+        ProcessCompleted -isExec $false
         return
     }
 
     Write-Progress -Activity "Backing up UserData" -Completed
     CleanUpBackupFolder
-    ProcessCompletedMsg -isExec $true
+    ProcessCompleted -isExec $true
 }
 
 function BackupPartitions
@@ -143,7 +142,7 @@ function BackupPartitions
     if (-not (ReadGPTHeaders -isTemp $true))
     {
         CleanUpBackupFolder
-        ProcessCompletedMsg -isExec $false
+        ProcessCompleted -isExec $false
         return
     }
 
@@ -204,7 +203,7 @@ function BackupPartitions
 
     Write-Progress -Activity "Backing up Partitions" -Completed
     CleanUpBackupFolder
-    ProcessCompletedMsg -isExec $isExec
+    ProcessCompleted -isExec $isExec
 }
 
 function FlashFirmware([string]$FlashPath = "")
@@ -224,7 +223,7 @@ function FlashFirmware([string]$FlashPath = "")
     # Read GPT Headers to get partition layouts for each LUN
     if (-not (ReadGPTHeaders -isTemp $true))
     {
-        ProcessCompletedMsg -isExec $false
+        ProcessCompleted -isExec $false
         return
     }
 
@@ -232,7 +231,7 @@ function FlashFirmware([string]$FlashPath = "")
     if ($flashList.Count -eq 0)
     {
         Write-Log "No firmware files found in '${cCyan}${FlashPath}${cCyan}'." "Error"
-        ProcessCompletedMsg -isExec $false
+        ProcessCompleted -isExec $false
         return
     }
 
@@ -242,7 +241,7 @@ function FlashFirmware([string]$FlashPath = "")
     # Flash LUNs
     if (-not (FlashLUNs -flashList $flashList -FlashPath $FlashPath))
     {
-        ProcessCompletedMsg -isExec $isExec
+        ProcessCompleted -isExec $isExec
         return
     }
     if ($flashList.LUNs.Count -gt 0)
@@ -253,7 +252,7 @@ function FlashFirmware([string]$FlashPath = "")
     # Flash GPTs
     if (-not (FlashGPTs -flashList $flashList -FlashPath $FlashPath))
     {
-        ProcessCompletedMsg -isExec $isExec
+        ProcessCompleted -isExec $isExec
         return
     }
     if ($flashList.GPTs.Count -gt 0)
@@ -264,7 +263,7 @@ function FlashFirmware([string]$FlashPath = "")
     # Re-read GPT headers before flashing partitions to ensure we use the new layout
     if (-not (ReadGPTHeaders -isTemp $true -isSort $true))
     {
-        ProcessCompletedMsg -isExec $isExec
+        ProcessCompleted -isExec $isExec
         return
     }
 
@@ -299,7 +298,7 @@ function FlashFirmware([string]$FlashPath = "")
     }
 
     Write-Progress -Activity "Flashing Firmware" -Completed
-    ProcessCompletedMsg -isExec $isExec
+    ProcessCompleted -isExec $isExec
 }
 
 function LoadFileList([string]$FlashPath)
@@ -715,12 +714,12 @@ function ExecuteCommand([string]$sCMDLine)
             $script:geFailed = 1
 
             # Save error log
-            if (-not (Test-Path $errorsPath))
+            if (-not (Test-Path $LogsPath))
             {
-                New-Item -ItemType Directory -Path $errorsPath | Out-Null
+                New-Item -ItemType Directory -Path $LogsPath | Out-Null
             }
-            $errorFile = "$errorsPath\QFIL-Error-$TimeStamp.txt"
-            Set-Content -Path $errorFile -Value ($stderr + "`n" + $stdout)
+            $errorLog = "$LogsPath\${TimeStamp}_qfilerror.log"
+            Set-Content -Path $errorLog -Value ($stderr + "`n" + $stdout)
 
             return $false
         }
@@ -750,10 +749,27 @@ function CleanUpBackupFolder()
     }
 }
 
-function ProcessCompletedMsg([bool]$isExec = $true)
+function ProcessCompleted([bool]$isExec = $true)
 {
     Play-BeepBeep
-    Move-Log
+
+    # Delete /tools/qpst/TMP folder
+    if (Test-Path -Path $qpstTMP)
+    {
+        Write-Log "Deleting ${cCyan}$( $qpstTMP )${cReset} folder..." "Action"
+        Remove-Item -Path $qpstTMP -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    # Move to ./logs/port_trace.txt
+    if (Test-Path -Path $portTrace)
+    {
+        Write-Log "Moving ${cCyan}$portTrace${cReset} to logs..." "Action"
+        if (-not (Test-Path -Path $LogsPath))
+        {
+            New-Item -ItemType Directory -Path $LogsPath | Out-Null
+        }
+        Move-Item -Path $portTrace -Destination "$LogsPath\${TimeStamp}_port_trace.txt" -Force
+    }
 
     if ($geFailed -eq 1)
     {
@@ -804,41 +820,4 @@ function BuildFileName($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string
     }
 
     return Join-Path $sDir "$sName.bin"
-}
-
-function Move-Log
-{
-    # Delete /tools/qpst/TMP folder
-    if (Test-Path -Path $qpstTMP)
-    {
-        Write-Log "Deleting ${cCyan}$( $qpstTMP )${cReset} folder..." "Action"
-        Remove-Item -Path $qpstTMP -Recurse -Force -ErrorAction SilentlyContinue
-    }
-
-    # Move ./port_trace.txt
-    if (Test-Path -Path $portTrace)
-    {
-        Write-Log "Moving ${cCyan}$portTrace${cReset} to logs..." "Action"
-        if (-not (Test-Path -Path $LogsPath))
-        {
-            New-Item -ItemType Directory -Path $LogsPath | Out-Null
-        }
-        Move-Item -Path $portTrace -Destination "$LogsPath\${TimeStamp}_port_trace.txt" -Force
-    }
-
-    # Move ./tools/qpst/Errors/*.log
-    if (Test-Path -Path $ErrorsPath)
-    {
-        $latestError = Get-ChildItem -Path $ErrorsPath -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-        if ($null -ne $latestError)
-        {
-            if (-not (Test-Path -Path $LogsPath))
-            {
-                New-Item -ItemType Directory -Path $LogsPath | Out-Null
-            }
-            $destErrorLog = "$LogsPath\${TimeStamp}_qfilerror.log"
-            Move-Item -Path $latestError.FullName -Destination $destErrorLog -Force
-            Write-Log "Moved QFIL error log to: $destErrorLog" "Action"
-        }
-    }
 }
