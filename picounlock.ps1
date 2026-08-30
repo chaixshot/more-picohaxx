@@ -42,8 +42,6 @@ $FASTBOOT = ".\tools\fastboot.exe"
 
 $TimeStamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 
-$script:PatchedImagePath = $null
-
 # --- Helper Functions ---
 . "$PSScriptRoot/modules/utils.ps1"
 . "$PSScriptRoot/modules/root.ps1"

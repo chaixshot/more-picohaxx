@@ -11,6 +11,7 @@
 # --- Root Functions ---
 
 $Magisk = ".\tools\Magisk4Pico.apk"
+$PatchedImagePath = $null
 
 function Prepare-Magisk
 {
