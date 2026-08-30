@@ -42,6 +42,14 @@ function Get-QualcommCOMPort
 
 function Send-Firehose
 {
+    if($null -eq $ComPort){
+        Write-Log "Unable to detect Qualcomm COM Port." "Error"
+        Write-Log "Ensure the device is connected in EDL mode and using the '${cCyan}qcser.inf${cReset}' driver." "Error"
+        Wait-Continue
+
+        return $false
+    }
+
     Write-Log "Sending firehose with QSaharaServer..." "Info"
     Write-Log "If the process is stuck here, it means EDL timed out. Reboot EDL and try again." "Warning"
 
@@ -218,11 +226,11 @@ function Verify-Backup([string]$FolderPath)
 
     if ($userDataFilesExist)
     {
-        Write-Log "Backup verification successful (UserData backup set found)." "Success"
+        Write-Log "UserData backup set found." "Success"
     }
     elseif ($lunsFilesExist)
     {
-        Write-Log "Backup verification successful (Full LUN backup set found)." "Success"
+        Write-Log "Full LUN backup set found." "Success"
     }
     else
     {
@@ -240,7 +248,7 @@ function Verify-Backup([string]$FolderPath)
         return $false
     }
 
-    Write-Log "Backup verification successful! Total size: ${cGreen}$sizeFormatted GB${cReset}" "Success"
+    Write-Log "Backup verification successful. Total size: ${cGreen}$sizeFormatted GB${cReset}" "Success"
     return $true
 }
 
