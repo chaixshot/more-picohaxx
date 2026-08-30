@@ -422,7 +422,11 @@ function Warning-ADB
     Write-Host ""
     Write-Log "Device not detected in ${cCyan}ADB${cReset} mode." "Error"
     Write-Log "Please connect your device and enable USB Debug." "Info"
-    Write-Log "${cYellow}https://knowledge.matts-digital.com/en/virtual-reality/pico/pico-g3/how-to-enable-usb-debugging-on-the-pico-g3/${cReset}" "Info"
+    Write-Host ""
+    Write-Log "1. Open PicoOS settings menu" "Info"
+    Write-Log "2. Goto General > About" "Info"
+    Write-Log "3. Tap '${cCyan}Software version${cReset}' 7 times quickly until the '${cCyan}Developer${cReset}' tab appears" "Info"
+    Write-Log "4. Goto '${cCyan}Developer${cReset}' tab and enable the USB Debug option" "Info"
 }
 
 function Warning-FASTBOOT

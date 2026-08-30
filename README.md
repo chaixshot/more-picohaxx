@@ -32,7 +32,7 @@ This tool includes a built-in **Backup/Restore** suite to protect your user data
 
 * **Windows PC**: The automation script is written in PowerShell.
 * **PowerShell Execution**: If script can not run, follow [ps-enabling-exec-scripts](https://github.com/whonion/ps-enabling-exec-scripts) guide
-* **Pico Device**: Pico 4, Pico 4 Pro, or Pico Neo 3 with **USB Debugging** enabled.
+* **Pico Device**: Pico 4, Pico 4 Pro, or Pico Neo 3 with [USB Debug](#usb-debug) enabled.
 
 ## WARNING
 
@@ -85,6 +85,15 @@ Using the engineering ABL can cause issues like slow boot times or the device un
 * Use a high-quality USB-C cable.
 * If EDL mode is unstable, try a **USB 2.0 port** or a USB 2.0 hub.
 
+### USB Debug
+
+1. Open PicoOS settings menu
+1. Goto General > About
+1. Tap **Software version** 7 times quickly until the **Developer** tab appears
+1. Goto **Developer** tab and enable the **USB Debug** option
+
+<img width="500" alt="usbdebug" src="https://knowledge.matts-digital.com/wp-content/uploads/2025/12/debogage-usb-pico-g3-plus-1.jpg" />
+
 ### Manual Boot
 
 * Edl mode: Hold <kbd>Vol Up</kbd> + <kbd>Vol Down</kbd> + <kbd>Power</kbd>.
@@ -105,7 +114,7 @@ Using the engineering ABL can cause issues like slow boot times or the device un
 
 * **[typlo](https://github.com/264312431)**: For finding this bypass method and the previous root exploit.
 * **[Fallen Angel](https://github.com/FallenAngel-PP)**: Fearless testing and validation, Magisk4Pico.
-* **[QFILHelper](https://github.com/Beliathal/QFILHelper)**: Guildline fh_loader flash management.
+* **[QFILHelper](https://github.com/Beliathal/QFILHelper)**: Guildline **fh_loader** flash management.
 
 ---
 *For more technical details on the bypass mechanism, refer to the comments in `more-picohaxx.py`.*
