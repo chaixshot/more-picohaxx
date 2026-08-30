@@ -10,7 +10,7 @@
 
 # --- Backup & Restore Functions ---
 
-$QSaharaServerPath = Join-Path $ProjectRoot "tools\qpst\QSaharaServer.exe"
+$QSaharaServerPath = "tools\qpst\QSaharaServer.exe"
 $ComPort = $null
 
 # Define Kernel32 API for reliable NTFS compressed size calculation

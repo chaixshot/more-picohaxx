@@ -26,8 +26,6 @@
 # ----------------------------
 # --- Script Configuration ---
 # ----------------------------
-$ProjectRoot = Split-Path -Path $PSScriptRoot -Parent
-
 $LogsPath = ".\logs"
 $DriverInstall = ".\tools\driver\install.ps1"
 $DeviceSerial = ".\serial_number.txt"
@@ -763,7 +761,7 @@ catch
 finally
 {
     Write-Header "Exited"
-    Write-Log "Version: 1.0.2" "Info"
+    Write-Log "Version: 1.0.3" "Info"
 
     try
     {

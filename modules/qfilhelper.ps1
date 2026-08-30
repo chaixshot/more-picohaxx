@@ -11,7 +11,7 @@
 $workingDirectory = "tools\qpst"
 $qpstTMP = "$workingDirectory\TMP"
 $portTrace = "$LogsPath\${TimeStamp}_port_trace.txt"
-$fhLoader = "$ProjectRoot\$workingDirectory\fh_loader.exe"
+$fhLoader = "$workingDirectory\fh_loader.exe"
 
 $galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
 $gsBackupDir = $null
@@ -210,7 +210,7 @@ function FlashFirmware([string]$FlashPath = "")
 {
     if ( [string]::IsNullOrEmpty($FlashPath))
     {
-        $FlashPath = Join-Path $ProjectRoot "$workingDirectory\Flash"
+        return
     }
 
     if (-not (ValidateCQF))
