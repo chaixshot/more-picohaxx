@@ -10,12 +10,8 @@
 
 # --- Backup & Restore Functions ---
 
-$ProjectRoot = Split-Path -Path $PSScriptRoot -Parent
 $QSaharaServerPath = Join-Path $ProjectRoot "tools\qpst\QSaharaServer.exe"
 $ComPort = $null
-
-$BackupPath = Join-Path $ProjectRoot "tools\qpst"
-$ErrorsPath = Join-Path $ProjectRoot "tools\qpst\Errors"
 
 # Define Kernel32 API for reliable NTFS compressed size calculation
 if (-not ([System.Management.Automation.PSTypeName]'Native.Win32').Type)
@@ -83,11 +79,11 @@ function Select-BackupFolder
 {
     Write-Header "Select Backup Folder"
 
-    $backupFolders = Get-ChildItem -Path $BackupPath -Directory -Filter "Backup-*" | Sort-Object CreationTime -Descending
+    $backupFolders = Get-ChildItem -Path $UserBackupPath -Directory -Filter "Backup-*" | Sort-Object CreationTime -Descending
 
     if ($backupFolders.Count -eq 0)
     {
-        Write-Log "No backup folders found in '$BackupPath'." "Error"
+        Write-Log "No backup folders found in '$UserBackupPath'." "Error"
         return $null
     }
 
@@ -116,7 +112,7 @@ function Select-BackupFolder
     Write-Log "Selected backup folder: ${cCyan}${targetBackup}${cReset}" "Success"
     Wait-Continue
 
-    return "$BackupPath\$targetBackup"
+    return "$UserBackupPath\$targetBackup"
 }
 
 function Get-UserdataSizeGB
@@ -404,11 +400,11 @@ function Backup-Device
     BackupUserData
 
     # Post-process organization
-    $newBackup = Get-ChildItem -Path $BackupPath -Directory -Filter "Backup-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    $newBackup = Get-ChildItem -Path $UserBackupPath -Directory -Filter "Backup-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
     if (-not $newBackup)
     {
-        Write-Log "Could not automatically find the backup folder in $BackupPath." "Warning"
+        Write-Log "Could not automatically find the backup folder in $UserBackupPath." "Warning"
     }
     elseif (Verify-Backup -FolderPath $newBackup.FullName)
     {

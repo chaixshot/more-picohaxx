@@ -11,7 +11,7 @@
 $workingDirectory = "tools\qpst"
 $qpstTMP = "$workingDirectory\TMP"
 $portTrace = "$LogsPath\${TimeStamp}_port_trace.txt"
-$fhLoader = Join-Path $ProjectRoot "$workingDirectory\fh_loader.exe"
+$fhLoader = "$ProjectRoot\$workingDirectory\fh_loader.exe"
 
 $galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
 $gsBackupDir = $null
@@ -522,7 +522,7 @@ function ResetLookUp
 
 function CreateBackupFolder
 {
-    $script:gsBackupDir = "$workingDirectory\Backup-$TimeStamp\"
+    $script:gsBackupDir = "$UserBackupPath\Backup-$TimeStamp\"
     New-Item -ItemType Directory -Path $gsBackupDir | Out-Null
 }
 

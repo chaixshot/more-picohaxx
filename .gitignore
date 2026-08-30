@@ -1,9 +1,8 @@
 /.idea
-/abl-backup
+/backup
 /logs
 serial_number.txt
 /tools/qpst/Flash/*
-/tools/qpst/Backup-*
 /tools/qpst/TMP
 /tools/qpst/Errors/*
 port_trace.txt

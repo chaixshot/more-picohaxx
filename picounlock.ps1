@@ -23,7 +23,11 @@
     - Magisk4Pico.apk must be in the .\tools directory for rooting.
 #>
 
+# ----------------------------
 # --- Script Configuration ---
+# ----------------------------
+$ProjectRoot = Split-Path -Path $PSScriptRoot -Parent
+
 $LogsPath = ".\logs"
 $DriverInstall = ".\tools\driver\install.ps1"
 $DeviceSerial = ".\serial_number.txt"
@@ -34,7 +38,10 @@ $FirehoseTargetPath = $null
 
 $AblPath = ".\tools\engineering\abl.elf"
 $DevInfoPath = ".\tools\engineering\devinfo"
-$AblBackupPath = ".\abl-backup"
+
+$BackupPath = ".\backup"
+$AblBackupPath = "${BackupPath}\abl"
+$UserBackupPath =  "${BackupPath}\userdata"
 
 $QDL = ".\tools\qdl.exe"
 $ADB = ".\tools\adb.exe"
@@ -42,12 +49,14 @@ $FASTBOOT = ".\tools\fastboot.exe"
 
 $TimeStamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 
-# --- Helper Functions ---
+# ----------------------------
+# ----- Helper Functions -----
+# ----------------------------
+
 . "$PSScriptRoot/modules/utils.ps1"
 . "$PSScriptRoot/modules/root.ps1"
 . "$PSScriptRoot/modules/backuprestore.ps1"
 . "$PSScriptRoot/modules/qfilhelper.ps1"
-
 
 function Check-Prerequisites
 {
@@ -191,7 +200,6 @@ function Check-Prerequisites
 
     return $isReady
 }
-
 
 function Generate-UnlockCode
 {
