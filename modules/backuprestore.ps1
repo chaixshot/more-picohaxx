@@ -117,24 +117,25 @@ function Get-UserdataSizeGB
     {
         try
         {
-            # Logic: Get block size from /sys/class/block/ for userdata partition
-            $partitionPath = (& $ADB shell "readlink -f /dev/block/by-name/userdata").Trim()
-            $partitionName = Split-Path $partitionPath -Leaf
-            $blocksRaw = (& $ADB shell "cat /sys/class/block/$partitionName/size").Trim()
+            # Query mounted /data directory using standard df (in 1K blocks)
+            $dfOutput = (& $ADB shell "df -k /data").Split("`n") | Select-Object -Last 1
+            $columns = ($dfOutput.Trim()) -split '\s+'
 
-            if ($blocksRaw -match '^\d+$')
+            if ($columns.Count -ge 2 -and $columns[1] -match '^\d+$')
             {
-                $blocks = [long]$blocksRaw
-                # Standard block size is 512 bytes
-                $sizeGB = [math]::Round(($blocks * 512) / 1GB, 2)
-                return $sizeGB
+                $sizeKB = [long]$columns[1]
+                return [math]::Round(($sizeKB * 1KB) / 1GB, 2)
             }
         }
         catch
         {
         }
     }
-    return 110 # Default for Pico 4
+
+    Write-Log "Could not determine userdata partition size via USB Debugging." "Warning"
+    Write-Log "Userdata size depends on your device model (e.g., 128GB, 256GB, or 512GB)." "Warning"
+
+    return 110 
 }
 
 function Verify-DiskSpace
