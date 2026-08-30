@@ -178,6 +178,7 @@ function Wait-UserConfirm
 {
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to access the userdata partition." "Warning"
     Write-Log "This process takes at least ${cGreen}40 minutes${cReset}. High speed ${cGreen}USB 3.0${cReset} is recommended." "Warning"
+    Write-Log "Make sure the device is '${cCyan}Fully Charged${cReset}'." "Warning"
     Write-Host "To proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
     $confirmation = Read-Host
     if ($confirmation -ne 'YES')

@@ -412,8 +412,10 @@ function Perform-FastbootUnlock
     }
 
     Wait-Continue
-    Verify-FastbootState "unlock"
-    Show-FastbootFinalInstruction
+    if(Verify-FastbootState "unlock")
+    {
+        Show-FastbootFinalInstruction
+    }
 }
 
 function Perform-FastbootLock
@@ -493,8 +495,11 @@ function Perform-FastbootLock
     }
 
     Wait-Continue
-    Verify-FastbootState "lock"
-    Show-FastbootFinalInstruction
+
+    if(Verify-FastbootState "lock")
+    {
+        Show-FastbootFinalInstruction
+    }
 }
 
 function Show-FastbootFinalInstruction
@@ -523,41 +528,61 @@ function Show-FastbootFinalInstruction
 
 function Verify-FastbootState([string]$state)
 {
-    # Normalize state to "unlock" or "lock"
+    # Normalize state check
     $isCheckUnlock = $state -match "^unlock"
     $actionName = if ($isCheckUnlock) { "Verify Unlock" } else { "Verify Lock" }
 
     Write-Header $actionName
-    Fastboot-To-Fastboot
+
+    if(IsFastbootMode)
+    {
+        Fastboot-To-Fastboot
+    }
+    elseif (IsAdbMode){
+        ADB-To-Fastboot
+    }
+    else{
+        Warning-FASTBOOT
+    }
 
     if (-not (Wait-FastbootMode 100))
     {
         Warning-FASTBOOT
-        return
+        return $null
     }
 
     $isUnlocked = IsFastbootUnlocked
-    if ($isUnlocked -eq $true)
+
+    if ($null -eq $isUnlocked)
     {
-        $statusText = if ($isCheckUnlock) { "UNLOCKED" } else { "LOCKED" }
+        $statusText = if ($isCheckUnlock) { "${cGreen}'UNLOCKED'${cReset}" } else { "${cYellow}'LOCKED'${cReset}" }
+        Write-Log "Unable to automatically detect bootloader state via fastboot." "Warning"
+        Write-Log "Please check your device screen. The bootloader menu should now show $statusText." "Warning"
+        
+        Wait-Continue
+        return $null
+    }
+
+    # Determine if actual device state matches desired state
+    $desiredState = if ($isCheckUnlock) { $true } else { $false }
+    $isSuccess = ($isUnlocked -eq $desiredState)
+    $statusText = if ($isUnlocked) { "UNLOCKED" } else { "LOCKED" }
+
+    if ($isSuccess)
+    {
         Write-Log "Bootloader status confirmed: ${cGreen}$statusText${cReset}" "Success"
     }
-    elseif ($isUnlocked -eq $false)
+    else
     {
-        $statusText = if ($isCheckUnlock) { "LOCKED" } else { "UNLOCKED" }
         Write-Log "Bootloader is still ${cRed}$statusText${cReset}." "Error"
         Write-Log "It is known that the unlock bits (written to protected RPMB storage) might not 'stick' immediately." "Info"
         Write-Log "Try a different USB port and cable, unplug the headset and plug it back in." "Info"
         Write-Log "You may need to repeat the process." "Info"
     }
-    elseif ($null -eq $isUnlocked)
-    {
-        $screenStatus = if ($isCheckUnlock) { "${cGreen}'UNLOCKED'${cReset}" } else { "${cYellow}'LOCKED'${cReset}" }
-        Write-Log "Unable to automatically detect bootloader state via fastboot." "Warning"
-        Write-Log "Please check your device screen. The bootloader menu should now show $screenStatus." "Warning"
-    }
 
     Wait-Continue
+
+    return $isSuccess
 }
 
 function IsFastbootUnlocked
@@ -568,11 +593,11 @@ function IsFastbootUnlocked
     $deviceInfo = $deviceInfoRaw -join "`n"
     Write-Host $deviceInfo
 
-    if ($deviceInfo -match "Device unlocked:\s*true")
+    if ($deviceInfo -match "Device\s*Unlocked\s*[:=]\s*true")
     {
         return $true
     }
-    elseif ($deviceInfo -match "Device unlocked:\s*false")
+    elseif ($deviceInfo -match "Device\s*Unlocked\s*[:=]\s*false")
     {
         return $false
     }
