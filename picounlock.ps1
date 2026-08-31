@@ -457,6 +457,9 @@ function Perform-FastbootUnlock
     {
         Write-Log "Bootloader status confirmed: ${cGreen}UNLOCKED${cReset}" "Success"
         Write-Log "Unplug the device and plug it back in before continuing." "Warning"
+
+        $null = Wait-FastbootMode -Timeout 100 -WaitForDisconnect
+        $null = Wait-FastbootMode 100
     }
     else
     {

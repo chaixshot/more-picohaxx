@@ -119,17 +119,30 @@ function Wait-Continue([string]$Action = "continue...")
     Write-Host ""
 }
 
-function Wait-FastbootMode([int]$Timeout = 100)
+function Wait-FastbootMode([int]$Timeout = 100, [switch]$WaitForDisconnect)
 {
     Write-Host ""
-    Write-Log "Waiting for device to enter ${cCyan}FASTBOOT${cReset} mode..." "Action"
-    $deviceDetected = $false
+    
+    # Set labels based on mode
+    if ($WaitForDisconnect)
+    {
+        Write-Log "Waiting for device to ${cCyan}DISCONNECT${cReset}..." "Action"
+    }
+    else{
+        Write-Log "Waiting for device to enter ${cCyan}FASTBOOT${cReset} mode..." "Action"
+    }
+    
+    $success = $false
     for ($i = 1; $i -le $Timeout; $i++)
     {
-        if (IsFastbootMode)
+        $isDetected = IsFastbootMode
+
+        # Check condition: when waiting for disconnect, $isDetected must be $false
+        if (($WaitForDisconnect -and -not $isDetected) -or (-not $WaitForDisconnect -and $isDetected))
         {
-            Write-Host "`rFastboot device detected.                                 " -ForegroundColor Green
-            $deviceDetected = $true
+            $msg = if ($WaitForDisconnect) { "Fastboot device disconnected." } else { "Fastboot device detected." }
+            Write-Host "`r$msg                                       " -ForegroundColor Green
+            $success = $true
             break
         }
 
@@ -157,26 +170,40 @@ function Wait-FastbootMode([int]$Timeout = 100)
     }
     
     Write-Host ""
-    if(-not $deviceDetected)
+    if (-not $success -and -not $WaitForDisconnect)
     {
         Warning-FASTBOOT
     }
 
-    return $deviceDetected
+    return $success
 }
 
-function Wait-EdlMode([int]$Timeout = 100)
+function Wait-EdlMode([int]$Timeout = 100, [switch]$WaitForDisconnect)
 {
     Write-Host ""
-    Write-Log "Waiting for device to enter ${cCyan}EDL${cReset} mode..." "Action"
-    $deviceDetected = $false
+    
+    # Set labels based on mode
+    if ($WaitForDisconnect)
+    {
+        Write-Log "Waiting for device to ${cCyan}DISCONNECT${cReset}..." "Action"
+    }
+    else
+    {
+        Write-Log "Waiting for device to enter ${cCyan}EDL${cReset} mode..." "Action"
+    }
+    
+    $success = $false
     for ($i = 1; $i -le $Timeout; $i++)
     {
-        if (IsEdlMode)
+        $isDetected = IsEdlMode
+
+        # Check condition: when waiting for disconnect, $isDetected must be $false
+        if (($WaitForDisconnect -and -not $isDetected) -or (-not $WaitForDisconnect -and $isDetected))
         {
-            Write-Host "`rEDL device detected.                                 " -ForegroundColor Green
-            Start-Sleep -Seconds 5
-            $deviceDetected = $true
+            $msg = if ($WaitForDisconnect) { "EDL device disconnected." } else { "EDL device detected." }
+            Write-Host "`r$msg                                       " -ForegroundColor Green
+            if (-not $WaitForDisconnect) { Start-Sleep -Seconds 5 }
+            $success = $true
             break
         }
 
@@ -202,27 +229,41 @@ function Wait-EdlMode([int]$Timeout = 100)
             break
         }
     }
-
+    
     Write-Host ""
-    if(-not $deviceDetected)
+    if (-not $success -and -not $WaitForDisconnect)
     {
         Warning-EDl
     }
-    
-    return $deviceDetected
+
+    return $success
 }
 
-function Wait-AdbMode([int]$Timeout = 100)
+function Wait-AdbMode([int]$Timeout = 100, [switch]$WaitForDisconnect)
 {
     Write-Host ""
-    Write-Log "Waiting for device to connect in ${cCyan}ADB${cReset} mode..." "Action"
-    $deviceDetected = $false
+    
+    # Set labels based on mode
+    if ($WaitForDisconnect)
+    {
+        Write-Log "Waiting for device to ${cCyan}DISCONNECT${cReset}..." "Action"
+    }
+    else
+    {
+        Write-Log "Waiting for device to connect in ${cCyan}ADB${cReset} mode..." "Action"
+    }
+    
+    $success = $false
     for ($i = 1; $i -le $Timeout; $i++)
     {
-        if (IsAdbMode)
+        $isDetected = IsAdbMode
+
+        # Check condition: when waiting for disconnect, $isDetected must be $false
+        if (($WaitForDisconnect -and -not $isDetected) -or (-not $WaitForDisconnect -and $isDetected))
         {
-            Write-Host "`rADB device detected.                                      " -ForegroundColor Green
-            $deviceDetected = $true
+            $msg = if ($WaitForDisconnect) { "ADB device disconnected." } else { "ADB device detected." }
+            Write-Host "`r$msg                                       " -ForegroundColor Green
+            $success = $true
             break
         }
 
@@ -248,14 +289,14 @@ function Wait-AdbMode([int]$Timeout = 100)
             break
         }
     }
-
+    
     Write-Host ""
-    if(-not $deviceDetected)
+    if (-not $success -and -not $WaitForDisconnect)
     {
         Warning-ADB
     }
-    
-    return $deviceDetected
+
+    return $success
 }
 
 function Select-Firehose
