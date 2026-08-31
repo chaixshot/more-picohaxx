@@ -258,7 +258,6 @@ function Flash-EngineeringAbl
 
     if (-not (Wait-EdlMode 100))
     {
-        Warning-EDL
         return
     }
 
@@ -317,7 +316,6 @@ function Restore-OriginalAbl
 
     if (-not (Wait-EdlMode 100))
     {
-        Warning-EDL
         return
     }
 
@@ -428,7 +426,6 @@ function Perform-FastbootUnlock
 
     if (-not (Wait-FastbootMode 100))
     {
-        Warning-FASTBOOT
         return
     }
 
@@ -500,7 +497,6 @@ function Perform-FastbootLock
 
     if (-not (Wait-FastbootMode 100))
     {
-        Warning-FASTBOOT
         return
     }
 
@@ -574,7 +570,6 @@ function Show-FastbootFinalInstruction
 
     if (-not (Wait-FastbootMode 100))
     {
-        Warning-FASTBOOT
         return
     }
 
@@ -602,7 +597,6 @@ function Verify-FastbootState([string]$state)
 
     if (-not (Wait-FastbootMode 100))
     {
-        Warning-FASTBOOT
         return $null
     }
 

@@ -155,7 +155,13 @@ function Wait-FastbootMode([int]$Timeout = 100)
             break
         }
     }
+    
     Write-Host ""
+    if(-not $deviceDetected)
+    {
+        Warning-FASTBOOT
+    }
+
     return $deviceDetected
 }
 
@@ -196,7 +202,13 @@ function Wait-EdlMode([int]$Timeout = 100)
             break
         }
     }
+
     Write-Host ""
+    if(-not $deviceDetected)
+    {
+        Warning-EDl
+    }
+    
     return $deviceDetected
 }
 
@@ -236,7 +248,13 @@ function Wait-AdbMode([int]$Timeout = 100)
             break
         }
     }
+
     Write-Host ""
+    if(-not $deviceDetected)
+    {
+        Warning-ADB
+    }
+    
     return $deviceDetected
 }
 

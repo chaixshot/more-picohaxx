@@ -385,7 +385,6 @@ function Backup-Device
 
     if (-not (Wait-EdlMode 100))
     {
-        Warning-EDL
         return
     }
 
@@ -446,7 +445,6 @@ function Restore-Backup([string]$FlashPath = "")
 
     if (-not (Wait-EdlMode 100))
     {
-        Warning-EDL
         return
     }
 

@@ -195,7 +195,6 @@ function Prepare-Magisk
 
     if (-not (Wait-AdbMode 100))
     {
-        Warning-ADB
         return
     }
 
@@ -307,7 +306,6 @@ function Flash-Magisk
 
     if (-not (Wait-FastbootMode 100))
     {
-        Warning-FASTBOOT
         return
     }
 
