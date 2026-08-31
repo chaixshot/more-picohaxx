@@ -209,6 +209,7 @@ function Prepare-Magisk
         else
         {
             Write-Log "Failed to install ${cYellow}Magisk${cReset}." "Error"
+            return
         }
     }
     else
@@ -251,11 +252,14 @@ function Prepare-Magisk
         Write-Log "Searching for patched image on device (${cCyan}/sdcard/Download/magisk_patched*.img${cReset})..." "Info"
 
         # Try to find the specific filename created by Magisk (handles both _ and - separators)
-        $remoteFiles = & $ADB shell "ls /sdcard/Download/magisk_patched*.img" 2> $null
-        if ($LASTEXITCODE -eq 0 -and $remoteFiles)
+        $remoteFiles = (& $ADB shell "ls /sdcard/Download/magisk_patched*.img" 2>$null) | 
+            ForEach-Object { $_.Trim() } | 
+            Where-Object { $_ -like "*.img" -and $_ -notlike "*No such file*" }
+
+        if ($remoteFiles)
         {
-            # Handle potential multiple files by taking the latest/first
-            $remoteFile = $remoteFiles.Trim().Split("`n")[0].Trim()
+            # Take the newest/first matched path
+            $remoteFile = ($remoteFiles | Select-Object -First 1).Trim()
             Write-Log "Found patched file: ${cCyan}$remoteFile${cReset}" "Success"
 
             & $ADB pull $remoteFile $localDir
@@ -273,8 +277,8 @@ function Prepare-Magisk
         }
         else
         {
-            Write-Log "Could not find a file matching ${cYellow}'magisk_patched.img'${cReset} in ${cCyan}/sdcard/Download/${cReset}." "Warning"
-            Write-Log "Please check the Magisk app for errors." "Warning"
+            Write-Log "Could not find a file matching ${cYellow}'magisk_patched.img'${cReset} in ${cCyan}/sdcard/Download/${cReset}." "Error"
+            Write-Log "Please check the Magisk app for errors." "Info"
         }
     }
     else
