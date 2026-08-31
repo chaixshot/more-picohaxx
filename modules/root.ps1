@@ -290,13 +290,82 @@ function Prepare-Magisk
 function Flash-Magisk
 {
     Write-Header "Flashing Magisk"
-    Write-Log "This step will reboot your device into ${cCyan}bootloader${cReset} mode to flash the patched boot image." "Warning"
-    Write-Host "To proceed with rebooting to bootloader, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
-    $confirmation = Read-Host
-    if ($confirmation -ne 'YES')
+
+    # Find patched image
+    $patchedImage = $null
+    if ($PatchedImagePath -and (Test-Path $PatchedImagePath))
     {
-        Write-Log "Reboot to bootloader aborted by user. No changes have been made." "Warning"
-        return
+        $patchedImage = Get-Item $PatchedImagePath
+        Write-Log "Found patched image from last adb pull: ${cGreen}$( $patchedImage.FullName )${cReset}" "Success"
+    }
+    else
+    {
+        Write-Log "Searching for patched image locally..." "Action"
+        $patchedImage = Get-ChildItem -Path "." -Filter "magisk_patched*.img" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    }
+
+    # No image path found automatically
+    if (-not $patchedImage)
+    {
+        Write-Host ""
+        Write-Log "Could not find any ${cYellow}'magisk_patched.img'${cReset} file automatically." "Warning"
+        Write-Log "Please select your ${cYellow}'magisk_patched.img'${cReset} file from explorer." "Info"
+        Wait-Continue "Select file"
+
+        # Initialize the File Dialog
+        Add-Type -AssemblyName System.Windows.Forms
+        $fileDialog = New-Object System.Windows.Forms.OpenFileDialog
+        $fileDialog.Title = "Select your magisk_patched.img file"
+        $fileDialog.Filter = "Magisk Patched Image (*magisk_patched*.img)|*magisk_patched*.img|All Files (*.*)|*.*"
+        $fileDialog.InitialDirectory = (Get-Location).Path
+        $fileDialog.ShowHelp = $false
+
+        # Show the dialog using an invisible top-most owner
+        $topForm = New-Object System.Windows.Forms.Form
+        $topForm.TopMost = $true
+
+        $dialogResult = $fileDialog.ShowDialog($topForm)
+        $topForm.Dispose()
+
+        if ($dialogResult -eq [System.Windows.Forms.DialogResult]::OK)
+        {
+            $patchedImage = Get-Item $fileDialog.FileName
+            Write-Log "Selected file: ${cYellow}$( $patchedImage.FullName )${cReset}" "Info"
+        }
+        else
+        {
+            Write-Log "No file was selected from explorer." "Warning"
+
+            $patchedImageInput = ""
+            while ($true)
+            {
+                Write-Host "Enter the full path to your ${cYellow}'magisk_patched.img'${cReset} (e.g., C:\Downloads\magisk_patched-30700_0lM5L.img): " -NoNewline
+                $patchedImageInput = Read-Host
+                $patchedImageInput = $patchedImageInput.Trim('"').Trim()
+
+                if ($patchedImageInput -ne "" -and (Test-Path $patchedImageInput -PathType Leaf))
+                {
+                    $tempItem = Get-Item $patchedImageInput
+                    if ($tempItem.Extension -eq ".img")
+                    {
+                        $patchedImage = $tempItem
+                        Write-Log "Selected file: ${cYellow}$( $patchedImage.FullName )${cReset}" "Info"
+                        break
+                    }
+                    else
+                    {
+                        Write-Log "Selected file '${cYellow}$patchedImageInput${cReset}' is not a '.img' file." "Error"
+                        Write-Host ""
+                        continue
+                    }
+                }
+                else
+                {
+                    Write-Log "File not found at '${cYellow}$patchedImageInput${cReset}'. Please ensure the path is correct and try again." "Error"
+                    Write-Host ""
+                }
+            }
+        }
     }
 
     if (IsAdbMode)
@@ -318,62 +387,16 @@ function Flash-Magisk
         return
     }
 
-    # Find patched image
-    $patchedImage = $null
-
-    if ($PatchedImagePath -and (Test-Path $PatchedImagePath))
+    Write-Log "Flashing patched boot image: ${cCyan}$( $patchedImage.FullName )${cReset}" "Action"
+    & $FASTBOOT flash boot $patchedImage.FullName
+    if ($LASTEXITCODE -eq 0)
     {
-        $patchedImage = Get-Item $PatchedImagePath
-        Write-Log "Found patched image from last adb pull: ${cGreen}$( $patchedImage.FullName )${cReset}" "Success"
+        Write-Log "Flash successful!" "Success"
+        Fastboot-To-System
     }
     else
     {
-        Write-Log "Searching for patched image locally..." "Info"
-        $patchedImage = Get-ChildItem -Path "." -Filter "magisk_patched*.img" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    }
-
-    if (-not $patchedImage)
-    {
-        Write-Log "Could not find any ${cYellow}'magisk_patched.img'${cReset} file automatically." "Warning"
-        $patchedImageInput = ""
-        while ($true)
-        {
-            Write-Host "`nEnter the full path to your ${cYellow}'magisk_patched.img'${cReset} (e.g., C:\Downloads\magisk_patched-30700_0lM5L.img): " -NoNewline
-            $patchedImageInput = Read-Host
-            $patchedImageInput = $patchedImageInput.Trim('"').Trim()
-
-            if ($patchedImageInput -ne "" -and (Test-Path $patchedImageInput -PathType Leaf))
-            {
-                $patchedImage = Get-Item $patchedImageInput
-                break
-            }
-
-            Write-Log "File not found at '${cYellow}$patchedImageInput${cReset}'. Please ensure the path is correct and try again." "Warning"
-        }
-    }
-
-    if ($patchedImage)
-    {
-        $script:PatchedImagePath = $patchedImage.FullName
-    }
-
-    if ($patchedImage)
-    {
-        Write-Log "Flashing patched boot image: ${cCyan}$( $patchedImage.FullName )${cReset}" "Action"
-        & $FASTBOOT flash boot $patchedImage.FullName
-        if ($LASTEXITCODE -eq 0)
-        {
-            Write-Log "Flash successful!" "Success"
-            Fastboot-To-System
-        }
-        else
-        {
-            Write-Log "Failed to flash boot image." "Error"
-        }
-    }
-    else
-    {
-        Write-Log "No patched image found or selected. Aborting flash." "Error"
+        Write-Log "Failed to flash boot image." "Error"
     }
 }
 
