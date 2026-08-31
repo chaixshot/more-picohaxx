@@ -706,11 +706,13 @@ function ExecuteCommand([string]$sCMDLine)
         $stderr = $process.StandardError.ReadToEnd()
         $process.WaitForExit()
 
-        if ($stdout -like "*Failed to open com port*" -or
+        if ($process.ExitCode -ne 0 -or
+                $stdout -like "*Failed to open com port*" -or
                 $stdout -like "*ERROR: Could not write to*" -or
                 $stdout -like "*SAHARA mode!!*")
         {
             Write-Log "fh_loader failed: ${cCyan}$($stdout.Trim() )${cReset}" "Error"
+            Write-Log "ExitCode: $($process.ExitCode)" "Error"
             $script:geFailed = 1
 
             # Save error log
