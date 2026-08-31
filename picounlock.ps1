@@ -758,7 +758,7 @@ catch
 finally
 {
     Write-Header "Exited"
-    Write-Log "Version: 1.0.3" "Info"
+    Write-Log "Version: 1.0.4" "Info"
 
     try
     {
