@@ -47,6 +47,8 @@ $FASTBOOT = ".\tools\fastboot.exe"
 
 $TimeStamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 
+$IsRetryBootloader = 0
+
 # ----------------------------
 # ----- Helper Functions -----
 # ----------------------------
@@ -403,16 +405,20 @@ function Get-LatestAblBackup([string]$FileName = "abl.bin")
 function Perform-FastbootUnlock
 {
     Write-Header "Performing Unlock Bootloader"
-    Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to unlock bootloader." "Warning"
-    Write-Log "If bootloader is in ${cRed}Locked${cReset} state, this process will factory reset device data." "Warning"
-    Write-Log "Recommended to do a backup in the main menu." "Warning"
 
-    Write-Host "`nTo proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
-    $confirmation = Read-Host
-    if ($confirmation -ne 'YES')
+    if($IsRetryBootloader -eq 0)
     {
-        Write-Log "Reboot to FASTBOOT aborted by user. No changes have been made." "Warning"
-        return
+        Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to unlock bootloader." "Warning"
+        Write-Log "If bootloader is in ${cRed}Locked${cReset} state, this process will factory reset device data." "Warning"
+        Write-Log "Recommended to do a backup in the main menu." "Warning"
+
+        Write-Host "`nTo proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
+        $confirmation = Read-Host
+        if ($confirmation -ne 'YES')
+        {
+            Write-Log "Reboot to FASTBOOT aborted by user. No changes have been made." "Warning"
+            return
+        }
     }
 
     if (IsAdbMode)
@@ -432,7 +438,8 @@ function Perform-FastbootUnlock
     # Check current state
     if (-not (IsFastbootUnlocked))
     {
-        Write-Log "Bootloader status confirmed: ${cGreen}LOCKED${cReset}" "Warning"
+        Write-Host ""
+        Write-Log "Bootloader status: ${cGreen}LOCKED${cReset}" "Warning"
         Write-Log "Your device will factory reset after the process." "Warning"
         Wait-Continue
     }
@@ -452,21 +459,26 @@ function Perform-FastbootUnlock
     Write-Log "Executing commands: ${cCyan}fastboot oem setenforce 0${cReset}" "Action"
     & $FASTBOOT oem setenforce 0
 
-    Write-Host ""
     if (IsFastbootUnlocked)
     {
+        Write-Host ""
         Write-Log "Bootloader status confirmed: ${cGreen}UNLOCKED${cReset}" "Success"
         Write-Log "Unplug the device and plug it back in before continuing." "Warning"
 
-        $null = Wait-FastbootMode -Timeout 100 -WaitForDisconnect
-        $null = Wait-FastbootMode 100
+        if($IsRetryBootloader -ne 2)
+        {
+            $null = Wait-FastbootMode -Timeout 100 -WaitForDisconnect
+            $null = Wait-FastbootMode 100
+            Wait-Continue
+        }
     }
     else
     {
+        Write-Host ""
         Write-Log "Device does not report as fully unlocked. You may need to repeat the process." "Error"
+        Wait-Continue
     }
 
-    Wait-Continue
     if(Verify-FastbootState "unlock")
     {
         Show-FastbootFinalInstruction
@@ -476,17 +488,20 @@ function Perform-FastbootUnlock
 function Perform-FastbootLock
 {
     Write-Header "Performing Lock Bootloader"
-    Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to lock bootloader." "Warning"
-    Write-Log "If bootloader is in ${cGreen}Unlocked${cReset} state, this process will factory reset device data." "Warning"
-    Write-Log "Recommended to do a backup in the main menu." "Warning"
-    Write-Host ""
 
-    Write-Host "`nTo proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
-    $confirmation = Read-Host
-    if ($confirmation -ne 'YES')
+    if($IsRetryBootloader -eq 0)
     {
-        Write-Log "Reboot to FASTBOOT aborted by user. No changes have been made." "Warning"
-        return
+        Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to lock bootloader." "Warning"
+        Write-Log "If bootloader is in ${cGreen}Unlocked${cReset} state, this process will factory reset device data." "Warning"
+        Write-Log "Recommended to do a backup in the main menu." "Warning"
+
+        Write-Host "`nTo proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
+        $confirmation = Read-Host
+        if ($confirmation -ne 'YES')
+        {
+            Write-Log "Reboot to FASTBOOT aborted by user. No changes have been made." "Warning"
+            return
+        }
     }
 
     if (IsAdbMode)
@@ -506,7 +521,8 @@ function Perform-FastbootLock
     # Check current state
     if (IsFastbootUnlocked)
     {
-        Write-Log "Bootloader status confirmed: ${cGreen}UNLOCKED${cReset}" "Warning"
+        Write-Host ""
+        Write-Log "Bootloader status: ${cGreen}UNLOCKED${cReset}" "Warning"
         Write-Log "Your device will factory reset after the process." "Warning"
         Wait-Continue
     }
@@ -537,18 +553,25 @@ function Perform-FastbootLock
     Write-Log "Executing commands: ${cCyan}fastboot flashing lock_critical${cReset}" "Action"
     & $FASTBOOT flashing lock_critical
 
-    Write-Host ""
     if (-not (IsFastbootUnlocked))
     {
+        Write-Host ""
         Write-Log "Bootloader status confirmed: ${cGreen}LOCKED${cReset}" "Success"
         Write-Log "Unplug the device and plug it back in before continuing." "Warning"
+        
+        if($IsRetryBootloader -ne 2)
+        {
+            $null = Wait-FastbootMode -Timeout 100 -WaitForDisconnect
+            $null = Wait-FastbootMode 100
+            Wait-Continue
+        }
     }
     else
     {
+        Write-Host ""
         Write-Log "Device does not report as fully locked. You may need to repeat the process." "Error"
+        Wait-Continue
     }
-
-    Wait-Continue
 
     if(Verify-FastbootState "lock")
     {
@@ -622,14 +645,47 @@ function Verify-FastbootState([string]$state)
 
     if ($isSuccess)
     {
+        Write-Host ""
         Write-Log "Bootloader status confirmed: ${cGreen}$statusText${cReset}" "Success"
     }
     else
     {
+        Write-Host ""
         Write-Log "Bootloader is still ${cRed}$statusText${cReset}." "Error"
         Write-Log "It is known that the unlock bits (written to protected RPMB storage) might not 'stick' immediately." "Info"
         Write-Log "Try a different USB port and cable, unplug the headset and plug it back in." "Info"
-        Write-Log "You may need to repeat the process." "Info"
+        Write-Log "You may need to repeat the process alot." "Info"
+        Write-Log "Keep trying and don't lose hope." "Info"
+
+        if($IsRetryBootloader -ne 2)
+        {
+            Write-Host ""
+            Write-Log "Do you want to retry now?" "Info"
+            Write-Host "Type ${cYellow}'YES'${cReset} to manual retry, or type ${cYellow}'AUTO'${cReset} to keep it running."
+            Write-Host "Anwser: " -NoNewline
+
+            $confirmation = Read-Host
+            if ($confirmation -eq 'YES')
+            {
+                $script:IsRetryBootloader = 1
+            }
+            elseif ($confirmation -eq 'AUTO')
+            {
+                $script:IsRetryBootloader = 2
+            }
+        }
+
+        if($IsRetryBootloader -ne 0)
+        {
+            if($isCheckUnlock)
+            {
+                Perform-FastbootUnlock
+            }
+            else{
+                Perform-FastboootLock
+            }
+            return $null
+        }
     }
 
     Wait-Continue
