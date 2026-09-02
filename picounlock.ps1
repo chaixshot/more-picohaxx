@@ -691,7 +691,7 @@ try {
     Write-Log "An unexpected error occurred: $_" "Error"
 } finally {
     Write-Header "Exited"
-    Write-Log "Version: 1.0.4" "Info"
+    Write-Log "Version: 1.0.5" "Info"
 
     try {
         Stop-Transcript
