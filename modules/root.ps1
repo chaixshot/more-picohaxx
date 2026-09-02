@@ -16,36 +16,35 @@ $PatchedImagePath = $null
 function Prepare-Firmware {
     Write-Header "Select Pico Firmware"
 
-    if (IsAdbMode)
-    {
+    if (IsAdbMode) {
         Write-Log "Device detected in ADB mode. Retrieving device info..." "Info"
 
-        $picoVersion   = (& $ADB shell getprop ro.build.display.id).Trim()
-        $model       = (& $ADB shell getprop ro.product.model).Trim()
+        $picoVersion = (& $ADB shell getprop ro.build.display.id).Trim()
+        $model = (& $ADB shell getprop ro.product.model).Trim()
         if (-not $model) { $model = (& $ADB shell getprop ro.product.name).Trim() }
         if (-not $model) { $model = (& $ADB shell getprop ro.build.product).Trim() }
 
-        $region      = (& $ADB shell getprop ro.pico.region).Trim()
+        $region = (& $ADB shell getprop ro.pico.region).Trim()
         if (-not $region) { $region = (& $ADB shell getprop ro.product.locale).Trim() }
-        $oemState    = (& $ADB shell getprop ro.oem.state).Trim()
+        $oemState = (& $ADB shell getprop ro.oem.state).Trim()
 
         # Interpret Model
         $modelFriendly = switch -Wildcard ($model) {
-            "A8110"     { "Pico 4" }
+            "A8110" { "Pico 4" }
             "*phoenix*" { "Pico 4" }
-            "A8150"     { "Pico 4 Pro" }
-            "A7H10"     { "Pico Neo 3" }
-            "*falcon*"  { "Pico Neo 3" }
-            Default     { $model }
+            "A8150" { "Pico 4 Pro" }
+            "A7H10" { "Pico Neo 3" }
+            "*falcon*" { "Pico Neo 3" }
+            Default { $model }
         }
 
         # Interpret Region
         $regionFriendly = switch -Wildcard ($region) {
-            "cn"        { "Chinese" }
+            "cn" { "Chinese" }
             "*Hans-CN*" { "Chinese" }
-            "global"    { "Global" }
-            "en-US"     { "Global" }
-            Default     { "Unknown ($region)" }
+            "global" { "Global" }
+            "en-US" { "Global" }
+            Default { "Unknown ($region)" }
         }
 
         # Interpret OEM Status
@@ -56,16 +55,15 @@ function Prepare-Firmware {
         Write-Log "Detected Type   : ${cGreen}$oemFriendly${cReset}" "Info"
         Write-Log "OS Version      : ${cGreen}$picoVersion${cReset}" "Info"
         Write-Host ""
-    }
-    else{
+    } else {
         Write-Log "Device in ADB mode can automatically detect model, region, and version." "Info"
         Wait-Continue
     }
 
     $FirmwareData = [ordered]@{
         "Pico 4" = [ordered]@{
-            "Global" = [ordered]@{
-                "OEM" = [ordered]@{
+            "Global"  = [ordered]@{
+                "OEM"     = [ordered]@{
                     "5.13.7" = "https://lf-stone-iot-va.dlpicovr.com/obj/stone-iot-us/5.13.7-202510301735-RELEASE-user-phoenix-b9665-42be801fae.zip"
                     "5.13.3" = "https://lf-stone-iot-va.dlpicovr.com/obj/stone-iot-us/5.13.3-202507030112-RELEASE-user-phoenix-b9480-6746cfb44c.zip"
                     "5.13.2" = "https://lf-stone-iot-va.dlpicovr.com/obj/stone-iot-us/5.13.2-202506120445-RELEASE-user-phoenix-b9453-cad6c763e2.zip"
@@ -95,7 +93,7 @@ function Prepare-Firmware {
                 }
             }
             "Chinese" = [ordered]@{
-                "OEM" = [ordered]@{
+                "OEM"     = [ordered]@{
                     "5.13.7" = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.13.7-202510300008-RELEASE-user-phoenix-b9650-de69e61ba0.zip"
                     "5.13.3" = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.13.3-202507021009-RELEASE-user-phoenix-b9472-d668fe19ea.zip"
                     "5.13.2" = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.13.2-202506120253-RELEASE-user-phoenix-b9448-3dd5f7afa1.zip"
@@ -125,11 +123,11 @@ function Prepare-Firmware {
             }
         }
         "Pico 3" = [ordered]@{
-            "Global" = [ordered]@{
+            "Global"   = [ordered]@{
                 "5.13.7" = "https://static.us-pui.picovr.com/5.13.7.0-202510301731-RELEASE-user-neo3-b3527-a84e92f190.zip"
                 "5.13.3" = "https://static.us-pui.picovr.com/5.13.3.0-202507031601-RELEASE-user-neo3-b3446-5418c43b4d.zip"
             }
-            "Chinese" = [ordered]@{
+            "Chinese"  = [ordered]@{
                 "5.13.7" = "https://alistatic.pui.picovr.com/5.13.7-202510301728-RELEASE-user-neo3-b5902-ddd6d04448.zip?_gl=1*1n8xuja*_gcl_au*MTM2ODg0NzA2MS4xNzYwMDUxMTY3"
                 "5.13.3" = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.13.2-202506120456-RELEASE-user-neo3-b5809-52a79f45aa.zip"
             }
@@ -180,52 +178,39 @@ function Prepare-Firmware {
     }
 }
 
-function Prepare-Magisk
-{
+function Prepare-Magisk {
     Write-Header "Preparing Magisk"
 
-    if (IsFastbootMode)
-    {
+    if (IsFastbootMode) {
         Fastboot-To-System
-    }
-    elseif (-not (IsAdbMode))
-    {
+    } elseif (-not (IsAdbMode)) {
         Warning-ADB
     }
 
-    if (-not (Wait-AdbMode 100))
-    {
+    if (-not (Wait-AdbMode 100)) {
         return
     }
 
     Write-Log "Installing ${cYellow}Magisk APK${cReset}..." "Info"
-    if (Test-Path $Magisk)
-    {
+    if (Test-Path $Magisk) {
         & $ADB install $Magisk
-        if ($LASTEXITCODE -eq 0)
-        {
+        if ($LASTEXITCODE -eq 0) {
             Write-Log "${cGreen}Magisk${cReset} installed successfully." "Success"
-        }
-        else
-        {
+        } else {
             Write-Log "Failed to install ${cYellow}Magisk${cReset}." "Error"
             return
         }
-    }
-    else
-    {
+    } else {
         Write-Log "Magisk APK not found at ${cYellow}$Magisk${cReset}" "Error"
     }
 
     $bootImgPath = ""
-    while ($true)
-    {
+    while ($true) {
         Write-Host "`nEnter the full path to your extracted ${cYellow}'boot.img'${cReset} (e.g., C:\Downloads\boot.img): " -NoNewline
         $bootImgPath = Read-Host
         $bootImgPath = $bootImgPath.Trim('"').Trim()
 
-        if ($bootImgPath -ne "" -and (Test-Path $bootImgPath -PathType Leaf))
-        {
+        if ($bootImgPath -ne "" -and (Test-Path $bootImgPath -PathType Leaf)) {
             break
         }
 
@@ -234,8 +219,7 @@ function Prepare-Magisk
 
     Write-Log "Pushing ${cYellow}'boot.img'${cReset} to device..." "Action"
     & $ADB push $bootImgPath /sdcard/Download/
-    if ($LASTEXITCODE -eq 0)
-    {
+    if ($LASTEXITCODE -eq 0) {
         Write-Log "Success! ${cYellow}'boot.img'${cReset} is now on your device in the ${cCyan}'Download'${cReset} folder." "Success"
         Write-Host "`n${cCyan}Actions on Device:${cReset}"
         Write-Host " 1. Open the ${cYellow}Magisk${cReset} app on your Pico."
@@ -253,60 +237,47 @@ function Prepare-Magisk
 
         # Try to find the specific filename created by Magisk (handles both _ and - separators)
         $remoteFiles = (& $ADB shell "ls /sdcard/Download/magisk_patched*.img" 2>$null) | 
-            ForEach-Object { $_.Trim() } | 
-            Where-Object { $_ -like "*.img" -and $_ -notlike "*No such file*" }
+        ForEach-Object { $_.Trim() } | 
+        Where-Object { $_ -like "*.img" -and $_ -notlike "*No such file*" }
 
-        if ($remoteFiles)
-        {
+        if ($remoteFiles) {
             # Take the newest/first matched path
             $remoteFile = ($remoteFiles | Select-Object -First 1).Trim()
             Write-Log "Found patched file: ${cCyan}$remoteFile${cReset}" "Success"
 
             & $ADB pull $remoteFile $localDir
-            if ($LASTEXITCODE -eq 0)
-            {
+            if ($LASTEXITCODE -eq 0) {
                 $patchedLocalPath = Join-Path $localDir (Split-Path $remoteFile -Leaf)
                 $script:PatchedImagePath = $patchedLocalPath
                 Write-Log "Patched image pulled successfully to: ${cGreen}$patchedLocalPath${cReset}" "Success"
                 Write-Log "You are now ready to flash this image in ${cCyan}fastboot${cReset} mode." "Info"
-            }
-            else
-            {
+            } else {
                 Write-Log "Failed to pull the patched image from the device." "Error"
             }
-        }
-        else
-        {
+        } else {
             Write-Log "Could not find a file matching ${cYellow}'magisk_patched.img'${cReset} in ${cCyan}/sdcard/Download/${cReset}." "Error"
             Write-Log "Please check the Magisk app for errors." "Info"
         }
-    }
-    else
-    {
+    } else {
         Write-Log "Failed to push ${cYellow}'boot.img'${cReset} to the device." "Error"
     }
 }
 
-function Flash-Magisk
-{
+function Flash-Magisk {
     Write-Header "Flashing Magisk"
 
     # Find patched image
     $patchedImage = $null
-    if ($PatchedImagePath -and (Test-Path $PatchedImagePath))
-    {
+    if ($PatchedImagePath -and (Test-Path $PatchedImagePath)) {
         $patchedImage = Get-Item $PatchedImagePath
         Write-Log "Found patched image from last adb pull: ${cGreen}$( $patchedImage.FullName )${cReset}" "Success"
-    }
-    else
-    {
+    } else {
         Write-Log "Searching for patched image locally..." "Action"
         $patchedImage = Get-ChildItem -Path "." -Filter "magisk_patched*.img" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
     }
 
     # No image path found automatically
-    if (-not $patchedImage)
-    {
+    if (-not $patchedImage) {
         Write-Host ""
         Write-Log "Could not find any ${cYellow}'magisk_patched.img'${cReset} file automatically." "Warning"
         Write-Log "Please select your ${cYellow}'magisk_patched.img'${cReset} file from explorer." "Info"
@@ -327,40 +298,30 @@ function Flash-Magisk
         $dialogResult = $fileDialog.ShowDialog($topForm)
         $topForm.Dispose()
 
-        if ($dialogResult -eq [System.Windows.Forms.DialogResult]::OK)
-        {
+        if ($dialogResult -eq [System.Windows.Forms.DialogResult]::OK) {
             $patchedImage = Get-Item $fileDialog.FileName
             Write-Log "Selected file: ${cYellow}$( $patchedImage.FullName )${cReset}" "Info"
-        }
-        else
-        {
+        } else {
             Write-Log "No file was selected from explorer." "Warning"
 
             $patchedImageInput = ""
-            while ($true)
-            {
+            while ($true) {
                 Write-Host "Enter the full path to your ${cYellow}'magisk_patched.img'${cReset} (e.g., C:\Downloads\magisk_patched-30700_0lM5L.img): " -NoNewline
                 $patchedImageInput = Read-Host
                 $patchedImageInput = $patchedImageInput.Trim('"').Trim()
 
-                if ($patchedImageInput -ne "" -and (Test-Path $patchedImageInput -PathType Leaf))
-                {
+                if ($patchedImageInput -ne "" -and (Test-Path $patchedImageInput -PathType Leaf)) {
                     $tempItem = Get-Item $patchedImageInput
-                    if ($tempItem.Extension -eq ".img")
-                    {
+                    if ($tempItem.Extension -eq ".img") {
                         $patchedImage = $tempItem
                         Write-Log "Selected file: ${cYellow}$( $patchedImage.FullName )${cReset}" "Info"
                         break
-                    }
-                    else
-                    {
+                    } else {
                         Write-Log "Selected file '${cYellow}$patchedImageInput${cReset}' is not a '.img' file." "Error"
                         Write-Host ""
                         continue
                     }
-                }
-                else
-                {
+                } else {
                     Write-Log "File not found at '${cYellow}$patchedImageInput${cReset}'. Please ensure the path is correct and try again." "Error"
                     Write-Host ""
                 }
@@ -368,43 +329,33 @@ function Flash-Magisk
         }
     }
 
-    if (IsAdbMode)
-    {
+    if (IsAdbMode) {
         ADB-To-Fastboot
-    }
-    elseif (-not (IsFastbootMode))
-    {
+    } elseif (-not (IsFastbootMode)) {
         Warning-FASTBOOT
     }
 
-    if (-not (Wait-FastbootMode 100))
-    {
+    if (-not (Wait-FastbootMode 100)) {
         return
     }
 
-    if (-not (Execute-UnlockCommand))
-    {
+    if (-not (Execute-UnlockCommand)) {
         return
     }
 
     Write-Log "Flashing patched boot image: ${cCyan}$( $patchedImage.FullName )${cReset}" "Action"
     & $FASTBOOT flash boot $patchedImage.FullName
-    if ($LASTEXITCODE -eq 0)
-    {
+    if ($LASTEXITCODE -eq 0) {
         Write-Log "Flash successful!" "Success"
         Fastboot-To-System
-    }
-    else
-    {
+    } else {
         Write-Log "Failed to flash boot image." "Error"
     }
 }
 
-function Show-RootMenu
-{
+function Show-RootMenu {
     $rootQuit = $false
-    while (-not $rootQuit)
-    {
+    while (-not $rootQuit) {
         Write-Header "Pico Root Menu"
         Write-Host " [${cCyan}1${cReset}] Prepare Firmware ${cDarkGray}(Firmware link)${cReset}"
         Write-Host " [${cCyan}2${cReset}] Prepare Magisk ${cDarkGray}(Install APK)${cReset}"
@@ -415,8 +366,7 @@ function Show-RootMenu
 
         $choice = Read-Host "`nSelect an option"
 
-        switch ($choice)
-        {
+        switch ($choice) {
             "1" {
                 Prepare-Firmware
             }
@@ -436,8 +386,7 @@ function Show-RootMenu
                 Write-Log "Invalid option. Please try again." "Warning"
             }
         }
-        if (-not $rootQuit)
-        {
+        if (-not $rootQuit) {
             Wait-Continue "return to the Root menu..."
         }
     }
