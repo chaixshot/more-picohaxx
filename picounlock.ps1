@@ -65,26 +65,32 @@ function Check-Prerequisites {
 
     if (-not (Test-Path $ADB) -and -not (Test-CommandExists "adb")) {
         Write-Log "${cYellow}$ADB${cReset} not found. Please add it to your ${cCyan}PATH${cReset} or place it in the script directory." "Error"
+        Write-Host ""
         $isReady = $false
     }
     if (-not (Test-Path $FASTBOOT) -and -not (Test-CommandExists "fastboot")) {
         Write-Log "${cYellow}$FASTBOOT${cReset} not found. Please add it to your ${cCyan}PATH${cReset} or place it in the script directory." "Error"
+        Write-Host ""
         $isReady = $false
     }
     if (-not (Test-Path $QDL)) {
         Write-Log "${cYellow}qdl.exe${cReset} not found. Please place it in the script directory." "Error"
+        Write-Host ""
         $isReady = $false
     }
     if (-not (Test-Path $AblPath)) {
         Write-Log "'${cYellow}$AblPath${cReset}' not found. Please download it and place it correctly." "Error"
+        Write-Host ""
         $isReady = $false
     }
     if (-not (Test-Path $FirehoseDDR4Path)) {
         Write-Log "'${cYellow}$FirehoseDDR4Path${cReset}' not found. Please download it and place it correctly." "Error"
+        Write-Host ""
         $isReady = $false
     }
     if (-not (Test-Path $FirehoseDDR5Path)) {
         Write-Log "'${cYellow}$FirehoseDDR5Path${cReset}' not found. Please download it and place it correctly." "Error"
+        Write-Host ""
         $isReady = $false
     }
 
@@ -124,17 +130,48 @@ function Check-Prerequisites {
         } else {
             $isReady = $false
         }
+
+        Write-Host ""
     }
 
     # Check for EDL driver and offer to install it
-    $targetDrivers = "qcser\.inf|android_winusb\.inf"
-    $installedDrivers = (pnputil /enum-drivers) -join "`n"
-    if ($installedDrivers -notmatch $targetDrivers) {
-        Write-Log "All prerequisites found." "Success"
-        Write-Host ""
-        Write-Log "The WinUSB driver for ${cCyan}EDL mode (Qualcomm 9008)${cReset} does not appear to be installed." "Warning"
+    $qcser_version = "1.1.0.2"
+    $qcser_provider = "Qualcomm Incorporated"
+    $qcser_date = "11/26/2021"
+    $android_winusb_version = "11.0.0.0"
+    $android_provider = "LeMobile"
+    $android_date = "08/28/2016"
+
+    $currentQcser = Get-InstalledDriverInfo "qcser.inf"
+    $currentWinusb = Get-InstalledDriverInfo "android_winusb.inf"
+
+    $needsInstall = $false
+    $needsUpdate = $false
+
+    if ($null -eq $currentQcser -or $null -eq $currentWinusb) {
+        $needsInstall = $true
+    } elseif ($currentQcser.Version -ne $qcser_version -or $currentQcser.Provider -ne $qcser_provider -or $currentQcser.Date -ne $qcser_date -or $currentWinusb.Version -ne $android_winusb_version -or $currentWinusb.Provider -ne $android_provider -or $currentWinusb.Date -ne $android_date) {
+        $needsUpdate = $true
+    }
+
+    if ($needsInstall -or $needsUpdate) {
+        if ($needsInstall) {
+            Write-Log "The required drivers for ${cCyan}EDL/Fastboot mode${cReset} do not appear to be installed." "Warning"
+        } else {
+            Write-Log "A driver version, provider, or date mismatch was detected." "Warning"
+            Write-Log "Installed:" "Info"
+            Write-Log "   qcser: ${cRed}$($currentQcser.Version)${cReset} - ${cMagenta}$($currentQcser.Date)${cReset} (${cYellow}$($currentQcser.Provider)${cReset})" "Info"
+            Write-Log "   winusb: ${cRed}$($currentWinusb.Version)${cReset} - ${cMagenta}$($currentWinusb.Date)${cReset} (${cYellow}$($currentWinusb.Provider)${cReset})" "Info"
+            Write-Log ""
+            Write-Log "Required:" "Info"
+            Write-Log "   qcser: ${cGreen}$qcser_version${cReset} - ${cMagenta}$($qcser_date)${cReset} (${cYellow}$qcser_provider${cReset})" "Info"
+            Write-Log "   winusb: ${cGreen}$android_winusb_version${cReset} - ${cMagenta}$($android_date)${cReset} (${cYellow}$android_provider${cReset})" "Info"
+            Write-Log ""
+        }
+
         Write-Log "This is required for flashing the ${cYellow}bootloader${cReset}." "Info"
-        Write-Host "Press ${cCyan}Y${cReset} to install the driver now, or ${cYellow}N${cReset} to skip (Requires Administrator privileges): " -NoNewline
+        $actionVerb = if ($needsUpdate) { "update" } else { "install" }
+        Write-Host "`nPress ${cCyan}Y${cReset} to $actionVerb the drivers now, or ${cYellow}N${cReset} to skip (Requires Administrator privileges): " -NoNewline
 
         $choice = Read-Host
         if ($choice -eq 'Y' -or $choice -eq 'y') {
@@ -147,24 +184,26 @@ function Check-Prerequisites {
                 Write-Log "Launching driver installer..." "Action"
                 Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$installScript`"" -NoNewWindow -Wait
 
-                Write-Log "Driver installation process finished. Re-checking for driver..." "Action"
+                Write-Log "Driver installation process finished. Re-checking versions..." "Action"
+                $checkQcser = Get-InstalledDriverInfo "qcser.inf"
+                $checkWinusb = Get-InstalledDriverInfo "android_winusb.inf"
 
-                $recheckDrivers = (pnputil /enum-drivers) -join "`n"
-                if ($recheckDrivers -notmatch $targetDrivers) {
-                    Write-Log "Driver still not found. Please run '${cYellow}$installScript${cReset}' manually as ${cCyan}Administrator${cReset} and then re-run this script." "Error"
+                if ($null -eq $checkQcser -or $checkQcser.Version -ne $qcser_version -or $checkQcser.Provider -ne $qcser_provider -or $checkQcser.Date -ne $qcser_date -or
+                    $null -eq $checkWinusb -or $checkWinusb.Version -ne $android_winusb_version -or $checkWinusb.Provider -ne $android_provider -or $checkWinusb.Date -ne $android_date) {
+                    Write-Log "Driver mismatch still detected after installation." "Error"
+                    Write-Log "Please run '${cYellow}$installScript${cReset}' manually as ${cCyan}Administrator${cReset} and then re-run this script." "Error"
                     $isReady = $false
                 } else {
-                    Write-Log "Driver successfully installed." "Success"
+                    Write-Log "Drivers successfully installed/updated." "Success"
                 }
 
                 Write-Log "Rescanning hardware devices to rebind correct driver..." "Action"
                 pnputil /scan-devices | Out-Null
             }
         } else {
+            $isReady = $false
             Write-Log "Skipping driver installation. The script may fail if the driver is not installed correctly." "Warning"
         }
-
-        Wait-Continue
     }
 
     if (-not $isReady) {

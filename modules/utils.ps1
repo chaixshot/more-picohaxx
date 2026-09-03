@@ -388,6 +388,43 @@ function Play-BeepBeep {
     [Console]::Beep(784, 300) # G5 tone for 300ms
 }
 
+function Get-InstalledDriverInfo([string]$infName) {
+    $drivers = pnputil /enum-drivers
+    $found = $false
+    $info = [PSCustomObject]@{
+        Version  = $null
+        Date     = $null
+        Provider = $null
+    }
+    foreach ($line in $drivers) {
+        if ($line -match "Original Name:\s+$infName") {
+            $found = $true
+        }
+        if ($found) {
+            if ($line -match "Driver Version:\s+(.*)") {
+                $fullVersion = $matches[1].Trim()
+                if ($fullVersion -match "(\d{2}/\d{2}/\d{4})\s+(.*)") {
+                    $info.Date = $matches[1]
+                    $info.Version = $matches[2]
+                } else {
+                    $info.Version = $fullVersion
+                }
+            }
+            if ($line -match "Provider Name:\s+(.*)") {
+                $info.Provider = $matches[1].Trim()
+            }
+        }
+        # If we reach the next driver block or the end, return what we found
+        if ($found -and $line -match "Published Name:" -and $null -ne $info.Version) {
+            return $info
+        }
+    }
+    if ($null -ne $info.Version) {
+        return $info
+    }
+    return $null
+}
+
 function Warning-ADB {
     Write-Host ""
     Write-Log "Device not detected in ${cCyan}ADB${cReset} mode." "Error"
