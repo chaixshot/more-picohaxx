@@ -37,7 +37,7 @@ function BackupLUNs {
     $isExec = $false
 
     # Iterate through LUN 0 to 6
-    Display-DontInterrupt
+    Display-DontInterrupt $true
     $total = 6
 
     for ($iCnt = 0; $iCnt -le $total; $iCnt++) {
@@ -102,7 +102,7 @@ function BackupUserData {
 
     $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
 
-    Display-DontInterrupt
+    Display-DontInterrupt $true
     Write-Progress -Activity "Backing up UserData" -Status "Backing up partition 'userdata'..." -PercentComplete 50
     Write-Log "Backing up partition '${cCyan}$( $obPInfo.sLabel )${cReset}'..." "Action"
     if (-not (ExecuteCommand $sCMDLine)) {
@@ -146,7 +146,7 @@ function BackupPartitions {
     $currentPart = 0
 
     # Iterate through LUN 0 to 6
-    Display-DontInterrupt
+    Display-DontInterrupt $true
     for ($iLUN = 0; $iLUN -le 6; $iLUN++) {
         foreach ($part in $galoLookUp[$iLUN]) {
             # Skip userdata partition as it's handled separately
@@ -210,7 +210,7 @@ function FlashFirmware([string]$FlashPath = "") {
     }
 
     $isExec = $false
-    Display-DontInterrupt
+    Display-DontInterrupt $false
 
     # Flash LUNs
     if (-not (FlashLUNs -flashList $flashList -FlashPath $FlashPath)) {
@@ -399,10 +399,14 @@ function Display-NotFound($obPInfo) {
     Write-Log "Partition '$( $obPInfo.sLabel )' not found on device (LUN $( $obPInfo.iLUN )). Skipping." "Warning"
 }
 
-function Display-DontInterrupt {
+function Display-DontInterrupt($isBackup) {
     Write-Log "Do not disconnect the device and interrupt the process." "Warning"
-    Write-Log "In the ${cCyan}restore process${cReset}, getting interrupted might brick the device." "Warning"
-    Write-Log "In the ${cCyan}backup process${cReset}, getting interrupted might cause the backup data to collapse, but the device is fine." "Warning"
+    if ($isBackup) {
+        Write-Log "In the ${cCyan}backup process${cReset}, getting interrupted might cause the backup data to collapse, but the device is fine." "Warning"
+    } else {
+        Write-Log "In the ${cCyan}restore process${cReset}, getting interrupted might brick the device." "Warning"
+    }
+    Write-Log "This can take a long time, do not panic if it looks stuck." "Info"
 }
 
 function LookUpNames($obPInfo) {
