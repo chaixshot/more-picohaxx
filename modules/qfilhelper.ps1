@@ -381,7 +381,7 @@ function Short2Long($fileName, [string]$FlashPath) {
                 $oldPath = Join-Path $FlashPath $fileName
                 $newPath = Join-Path $FlashPath $newName
 
-                Write-Log "Renaming '${cCyan}$fileName${cReset}' to '${cCyan}$newName${cReset}'..." "Info"
+                Write-Log "Renaming '${cCyan}$fileName${cReset}' to '${cCyan}$newName${cReset}'..." "Action"
                 try {
                     Rename-Item -Path $oldPath -NewName $newName -ErrorAction Stop
                     return [System.IO.Path]::GetFileNameWithoutExtension($newName).ToLower()

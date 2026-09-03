@@ -19,7 +19,7 @@ if (-not ([System.Management.Automation.PSTypeName]'Native.Win32').Type) {
 }
 
 function Get-QualcommCOMPort {
-    Write-Log "Scanning for Qualcomm Emergency Download (EDL) device..." "Info"
+    Write-Log "Scanning for Qualcomm Emergency Download (EDL) device..." "Action"
 
     # Query WMI for devices matching "Qualcomm" and "9008" or "QDLoader"
     $device = Get-CimInstance -ClassName Win32_PnPEntity |
@@ -42,7 +42,7 @@ function Send-Firehose {
         return $false
     }
 
-    Write-Log "Sending firehose with QSaharaServer..." "Info"
+    Write-Log "Sending firehose with QSaharaServer..." "Action"
     Write-Log "If the process is stuck here, it means EDL timed out. Reboot EDL and try again." "Warning"
 
     $saharaOutput = & $QSaharaServerPath -p "\\.\COM$ComPort" -s "13:`"$FirehoseTargetPath`"" 2>&1 | ForEach-Object { Write-Host $_; $_ }
@@ -77,7 +77,7 @@ function Select-BackupFolder {
         return $null
     }
 
-    Write-Log "Listing available backup folders..." "Info"
+    Write-Log "Listing available backup folders..." "Action"
     Write-Host "`nAvailable Backup Folders:" -ForegroundColor Cyan
     for ($i = 0; $i -lt $backupFolders.Count; $i++) {
         Write-Host " [${cCyan}$( $i + 1 )${cReset}] $( $backupFolders[$i].Name ) ${cGreen}($( $backupFolders[$i].CreationTime ))${cReset}"
@@ -227,7 +227,7 @@ function Folder-Compression([string]$FolderPath) {
 
     if ($confirmation -eq 'YES') {
         Write-Host ""
-        Write-Log "Scanning target directory..." "Info"
+        Write-Log "Scanning target directory..." "Action"
 
         Write-Progress -Activity "Scanning Files" -Status "Collecting file inventory..."
         $fileList = Get-ChildItem -Path $FolderPath -Recurse -File -Force -ErrorAction SilentlyContinue

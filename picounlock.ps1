@@ -147,7 +147,7 @@ function Check-Prerequisites {
                 Write-Log "Launching driver installer..." "Action"
                 Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$installScript`"" -NoNewWindow -Wait
 
-                Write-Log "Driver installation process finished. Re-checking for driver..." "Info"
+                Write-Log "Driver installation process finished. Re-checking for driver..." "Action"
 
                 $recheckDrivers = (pnputil /enum-drivers) -join "`n"
                 if ($recheckDrivers -notmatch $targetDrivers) {

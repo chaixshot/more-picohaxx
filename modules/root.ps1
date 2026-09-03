@@ -17,7 +17,7 @@ function Prepare-Firmware {
     Write-Header "Select Pico Firmware"
 
     if (IsAdbMode) {
-        Write-Log "Device detected in ADB mode. Retrieving device info..." "Info"
+        Write-Log "Device detected in ADB mode. Retrieving device info..." "Action"
 
         $picoVersion = (& $ADB shell getprop ro.build.display.id).Trim()
         $model = (& $ADB shell getprop ro.product.model).Trim()
@@ -191,7 +191,7 @@ function Prepare-Magisk {
         return
     }
 
-    Write-Log "Installing ${cYellow}Magisk APK${cReset}..." "Info"
+    Write-Log "Installing ${cYellow}Magisk APK${cReset}..." "Action"
     if (Test-Path $Magisk) {
         & $ADB install $Magisk
         if ($LASTEXITCODE -eq 0) {
@@ -233,7 +233,7 @@ function Prepare-Magisk {
         Wait-Continue "pull the patched image back to your computer..."
 
         $localDir = Split-Path $bootImgPath -Parent
-        Write-Log "Searching for patched image on device (${cCyan}/sdcard/Download/magisk_patched*.img${cReset})..." "Info"
+        Write-Log "Searching for patched image on device (${cCyan}/sdcard/Download/magisk_patched*.img${cReset})..." "Action"
 
         # Try to find the specific filename created by Magisk (handles both _ and - separators)
         $remoteFiles = (& $ADB shell "ls /sdcard/Download/magisk_patched*.img" 2>$null) | 
