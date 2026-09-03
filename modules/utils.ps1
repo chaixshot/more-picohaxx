@@ -360,7 +360,7 @@ function Perform-Reboot {
     $choice = Read-Host "Select an option"
 
     if (IsFastbootMode) {
-        if ($choice -in "1", "") {
+        if ($choice -eq "1") {
             Fastboot-To-System
         } elseif ($choice -eq "2") {
             Fastboot-To-Fastboot
@@ -371,7 +371,7 @@ function Perform-Reboot {
             Write-Log "Unable to reboot to EDL." "Error"
         }
     } elseif (IsAdbMode) {
-        if ($choice -in "1", "") {
+        if ($choice -eq "1") {
             ADB-To-System
         } elseif ($choice -eq "2") {
             ADB-To-Fastboot
