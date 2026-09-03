@@ -4,17 +4,11 @@
 [Version]
 Signature           = "$Windows NT$"
 Class               = AndroidUsbDeviceClass
-ClassGuid           = {3F966BD9-FA04-4ec5-991C-D326973B5128}
+ClassGuid           = {3F966BD9-FA04-4ec5-991C-D326973B2B0E}
 Provider            = %ProviderName%
-DriverVer           = 01/27/2014,9.0.0000.00000
-CatalogFile.NTx86   = androidwinusb86.cat
-CatalogFile.NTamd64 = androidwinusba64.cat
+DriverVer           = 08/28/2016,11.0.0000.00000
+CatalogFile = androidwinusb.cat
 
-;
-; This section seems to be required for WinUsb driver installation.
-; If this section is removed the installer will report an error
-; "Required section not found in INF file".
-;
 [ClassInstall32]
 Addreg = AndroidWinUsbClassReg
 
@@ -22,98 +16,219 @@ Addreg = AndroidWinUsbClassReg
 HKR,,,0,%ClassName%
 HKR,,Icon,,-1
 
+
 [Manufacturer]
-%ProviderName% = Google, NTx86, NTamd64
-
-; For XP and later
-[Google.NTx86]
-;Qualcomm SURF/FFA 
-%SingleAdbInterface%        = USB_Install, USB\VID_1E0E&PID_CE59
-;%CompositeAdbInterface%     = USB_Install, USB\VID_1E0E&PID_CE59&MI_01
-%SingleBootLoaderInterface% = USB_Install, USB\VID_18D1&PID_D00D
+%ProviderName% = LeMobile, NTx86, NTamd64
 
 
-%CompositeAdbInterface%     = USB_Install, USB\VID_1E0E&PID_CE59&MI_02
+[LeMobile.NTx86]
 
-%CompositeAdbInterface%     = USB_Install, USB\VID_1D9C&PID_9015&MI_00
-
-%CompositeAdbInterface%     = USB_Install, USB\VID_1D9C&PID_9025&MI_01
-
-%CompositeAdbInterface%     = USB_Install, USB\VID_1D9C&PID_9039&MI_01
-
-%CompositeAdbInterface%     = USB_Install, USB\VID_1D9C&PID_904E&MI_01
-
-%CompositeAdbInterface%     = USB_Install, USB\VID_1D9C&PID_904F&MI_01
-
-%CompositeAdbInterface%     = USB_Install, USB\VID_1D9C&PID_9057&MI_02
-
-%SingleAdbInterface%        = USB_Install, USB\VID_1D9C&PID_905A
-
-
-[Google.NTamd64] 
-;Qualcomm SURF/FFA 
-%SingleAdbInterface%        = USB_Install, USB\VID_1E0E&PID_CE59
-;%CompositeAdbInterface%     = USB_Install, USB\VID_1E0E&PID_CE59&MI_01
-%SingleBootLoaderInterface% = USB_Install, USB\VID_18D1&PID_D00D
-
-
-%CompositeAdbInterface%     = USB_Install, USB\VID_1E0E&PID_CE59&MI_02
-
-%CompositeAdbInterface%     = USB_Install, USB\VID_1D9C&PID_9015&MI_00
-
-%CompositeAdbInterface%     = USB_Install, USB\VID_1D9C&PID_9025&MI_01
-
-%CompositeAdbInterface%     = USB_Install, USB\VID_1D9C&PID_9039&MI_01
-
-%CompositeAdbInterface%     = USB_Install, USB\VID_1D9C&PID_904E&MI_01
-
-%CompositeAdbInterface%     = USB_Install, USB\VID_1D9C&PID_904F&MI_01
-
-%CompositeAdbInterface%     = USB_Install, USB\VID_1D9C&PID_9057&MI_02
-
-%SingleAdbInterface%        = USB_Install, USB\VID_1D9C&PID_905A
-
-
-[Google.NTx86]
-; HTC Dream
-%SingleAdbInterface%        = USB_Install, USB\VID_0BB4&PID_0C01
-%CompositeAdbInterface%     = USB_Install, USB\VID_0BB4&PID_0C02&MI_01
-%SingleBootLoaderInterface% = USB_Install, USB\VID_0BB4&PID_0FFF
-; HTC Magic
-%CompositeAdbInterface%     = USB_Install, USB\VID_0BB4&PID_0C03&MI_01
-;
-;Moto Sholes
-%SingleAdbInterface%        = USB_Install, USB\VID_22B8&PID_41DB
-%CompositeAdbInterface%     = USB_Install, USB\VID_22B8&PID_41DB&MI_01
-;
-;Google NexusOne
+;Google Nexus One
 %SingleAdbInterface%        = USB_Install, USB\VID_18D1&PID_0D02
 %CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_0D02&MI_01
 %SingleAdbInterface%        = USB_Install, USB\VID_18D1&PID_4E11
 %CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4E12&MI_01
 
-[Google.NTamd64]
-; HTC Dream
-%SingleAdbInterface%        = USB_Install, USB\VID_0BB4&PID_0C01
-%CompositeAdbInterface%     = USB_Install, USB\VID_0BB4&PID_0C02&MI_01
-%SingleBootLoaderInterface% = USB_Install, USB\VID_0BB4&PID_0FFF
-; HTC Magic
-%CompositeAdbInterface%     = USB_Install, USB\VID_0BB4&PID_0C03&MI_01
+;Google Nexus S
+%SingleAdbInterface%        = USB_Install, USB\VID_18D1&PID_4E21
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4E22&MI_01
+%SingleAdbInterface%        = USB_Install, USB\VID_18D1&PID_4E23
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4E24&MI_01
+
+;Google Nexus 7
+%SingleBootLoaderInterface% = USB_Install, USB\VID_18D1&PID_4E40
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4E42&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4E44&MI_01
+
+;Google Nexus Q
+%SingleBootLoaderInterface% = USB_Install, USB\VID_18D1&PID_2C10
+%SingleAdbInterface%        = USB_Install, USB\VID_18D1&PID_2C11
+
+;Google Nexus (generic)
+%SingleBootLoaderInterface% = USB_Install, USB\VID_18D1&PID_4EE0
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4EE2&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4EE4&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4EE6&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4EE7
+
+;Google Glass
+%SingleAdbInterface%        = USB_Install, USB\VID_18D1&PID_9001
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_9001&MI_01
+
+;Project Tango (generic)
+%SingleBootLoaderInterface% = USB_Install, USB\VID_18D1&PID_4D00
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4D02&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4D04&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4D06&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4D07
+
 ;
-;Moto Sholes
-%SingleAdbInterface%        = USB_Install, USB\VID_22B8&PID_41DB
-%CompositeAdbInterface%     = USB_Install, USB\VID_22B8&PID_41DB&MI_01
+;Letv Devices
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_18A1&MI_02
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_18A0&MI_02
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_189F&MI_01
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_189E&MI_01
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_1847&MI_02
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_1846&MI_02
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_1845&MI_01
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_1844&MI_01
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_18AB&MI_02
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_18AA&MI_02
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_18A9&MI_01
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_18A8&MI_01
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_610B&MI_00
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_610B&MI_01
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_610D&MI_00
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_610D&MI_01
+
 ;
-;Google NexusOne
+;Qualcomm Devices
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9025&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9024&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9015&MI_00
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9018&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9029&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9031&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9037&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9035&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9053&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9039&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_904E&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_903A&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_903F&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9022&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_902D&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_901D&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_903B&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9042&MI_04
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9044&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9046&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9056&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9059&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9060&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9064&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9065&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9082&MI_05
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9084&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9098&MI_04
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_909A&MI_04
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9091&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9020&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_90B4&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_90B6&MI_04
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_90B8&MI_04
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_90B9&MI_04
+;
+;Google Recovery
+%SingleAdbInterface%		= USB_Install, USB\VID_18D1&PID_D001
+;
+;Google fastboot
+%SingleBootLoaderInterface% 	= USB_Install, USB\VID_18D1&PID_D00D
+
+
+[LeMobile.NTamd64]
+
+;Google Nexus One
 %SingleAdbInterface%        = USB_Install, USB\VID_18D1&PID_0D02
 %CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_0D02&MI_01
 %SingleAdbInterface%        = USB_Install, USB\VID_18D1&PID_4E11
 %CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4E12&MI_01
+
+;Google Nexus S
+%SingleAdbInterface%        = USB_Install, USB\VID_18D1&PID_4E21
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4E22&MI_01
+%SingleAdbInterface%        = USB_Install, USB\VID_18D1&PID_4E23
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4E24&MI_01
+
+;Google Nexus 7
+%SingleBootLoaderInterface% = USB_Install, USB\VID_18D1&PID_4E40
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4E42&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4E44&MI_01
+
+;Google Nexus Q
+%SingleBootLoaderInterface% = USB_Install, USB\VID_18D1&PID_2C10
+%SingleAdbInterface%        = USB_Install, USB\VID_18D1&PID_2C11
+
+;Google Nexus (generic)
+%SingleBootLoaderInterface% = USB_Install, USB\VID_18D1&PID_4EE0
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4EE2&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4EE4&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4EE6&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4EE7
+
+;Google Glass
+%SingleAdbInterface%        = USB_Install, USB\VID_18D1&PID_9001
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_9001&MI_01
+
+;Project Tango (generic)
+%SingleBootLoaderInterface% = USB_Install, USB\VID_18D1&PID_4D00
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4D02&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4D04&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4D06&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_18D1&PID_4D07
+
 ;
-;Sonin XP5
-%SingleAdbInterface%        = USB_Install, USB\VID_1D9C&PID_9025
-%CompositeAdbInterface%     = USB_Install, USB\VID_1D9C&PID_9025&MI_01
-%SingleBootLoaderInterface% = USB_Install, USB\VID_0BB4&PID_0FFF
+;Letv Devices
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_18A1&MI_02
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_18A0&MI_02
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_189F&MI_01
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_189E&MI_01
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_1847&MI_02
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_1846&MI_02
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_1845&MI_01
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_1844&MI_01
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_18AB&MI_02
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_18AA&MI_02
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_18A9&MI_01
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_18A8&MI_01
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_610B&MI_00
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_610B&MI_01
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_610D&MI_00
+%LETVCompositeAdbInterface%     = USB_Install, USB\VID_2B0E&PID_610D&MI_01
+
+;
+;Qualcomm Devices
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9025&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9024&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9015&MI_00
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9018&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9029&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9031&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9037&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9035&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9053&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9039&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_904E&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_903A&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_903F&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9022&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_902D&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_901D&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_903B&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9042&MI_04
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9044&MI_02
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9046&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9056&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9059&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9060&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9064&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9065&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9082&MI_05
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9084&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9098&MI_04
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_909A&MI_04
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9091&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_9020&MI_01
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_90B4&MI_03
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_90B6&MI_04
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_90B8&MI_04
+%CompositeAdbInterface%     = USB_Install, USB\VID_05C6&PID_90B9&MI_04
+;
+;Google Recovery
+%SingleRecoveryInterface%	= USB_Install, USB\VID_18D1&PID_D001
+;
+;Google fastboot
+%SingleBootLoaderInterface% 	= USB_Install, USB\VID_18D1&PID_D00D
 
 [USB_Install]
 Include = winusb.inf
@@ -147,10 +262,10 @@ AddReg    = CoInstallers_AddReg
 CopyFiles = CoInstallers_CopyFiles
 
 [CoInstallers_AddReg]
-HKR,,CoInstallers32,0x00010000,"WdfCoInstaller01009.dll,WdfCoInstaller","WinUSBCoInstaller.dll"
+HKR,,CoInstallers32,0x00010000,"WdfCoInstaller01009.dll,WdfCoInstaller","WinUSBCoInstaller2.dll"
 
 [CoInstallers_CopyFiles]
-WinUSBCoInstaller.dll
+WinUSBCoInstaller2.dll
 WdfCoInstaller01009.dll
 
 [DestinationDirs]
@@ -161,18 +276,20 @@ CoInstallers_CopyFiles=11
 2 = %DISK_NAME%,,,\amd64
 
 [SourceDisksFiles.x86]
-WinUSBCoInstaller.dll  = 1
+WinUSBCoInstaller2.dll  = 1
 WdfCoInstaller01009.dll = 1
 
 [SourceDisksFiles.amd64]
-WinUSBCoInstaller.dll  = 2
+WinUSBCoInstaller2.dll  = 2
 WdfCoInstaller01009.dll = 2
 
 [Strings]
-ProviderName                = "Google, Inc."
+ProviderName                = "LeMobile"
 SingleAdbInterface          = "Android ADB Interface"
+LETVCompositeAdbInterface   = "LeMobile Composite ADB Interface"
 CompositeAdbInterface       = "Android Composite ADB Interface"
+SingleRecoveryInterface     = "Android ADB Recovery Interface"
 SingleBootLoaderInterface   = "Android Bootloader Interface"
 WinUSB_SvcDesc              = "Android USB Driver"
 DISK_NAME                   = "Android WinUsb installation disk"
-ClassName                   = "Android Phone"
+ClassName                   = "LeMobile Android Device"
