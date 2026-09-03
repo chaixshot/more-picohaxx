@@ -671,6 +671,9 @@ if (-not (Test-Path $LogsPath)) {
 $LogFile = "$LogsPath\${TimeStamp}_console.log"
 Start-Transcript -Path $LogFile -Append
 
+$host.UI.RawUI.WindowTitle = "more-picohaxx"
+[System.Console]::Title = "more-picohaxx"
+
 try {
     if (Check-Prerequisites) {
         Clear-Host
