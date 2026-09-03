@@ -206,6 +206,8 @@ function Check-Prerequisites {
         }
     }
 
+    & $ADB start-server
+
     if (-not $isReady) {
         Write-Log "Some prerequisites are missing. Functions may not work correctly." "Warning"
         Wait-Continue
@@ -737,6 +739,7 @@ try {
 
     try {
         Stop-Transcript
+        & $ADB kill-server
     } catch {
     }
     try {
