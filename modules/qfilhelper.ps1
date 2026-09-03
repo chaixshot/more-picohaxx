@@ -605,7 +605,7 @@ function ExecuteCommand([string]$sCMDLine) {
         $stderr = $process.StandardError.ReadToEnd()
         $process.WaitForExit()
 
-        if ($process.ExitCode -ne 0 -or
+        if ($process.ExitCode -notin @(0, 1) -or
             $stdout -like "*Failed to open com port*" -or
             $stdout -like "*ERROR: Could not write to*" -or
             $stdout -like "*SAHARA mode!!*") {
