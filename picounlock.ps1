@@ -305,7 +305,7 @@ function Get-LatestAblBackup([string]$FileName = "abl.bin") {
         while (-not $selectedFolder) {
             Write-Host "`nAvailable backup folders:" -ForegroundColor Cyan
             for ($i = 0; $i -lt $folders.Count; $i++) {
-                Write-Host " [${cCyan}$i${cReset}] $( $folders[$i].Name )"
+                Write-Host " [${cCyan}$i${cReset}] $( $folders[$i].Name ) ${cGreen}($( $folders[$i].CreationTime ))${cReset}"
             }
             Write-Host "`nSelect a backup folder (enter index or folder name, default [${cCyan}0${cReset}] for latest, [${cYellow}c${cReset}] to cancel): " -NoNewline
             $selection = Read-Host

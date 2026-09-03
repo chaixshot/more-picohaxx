@@ -77,7 +77,6 @@ function Select-BackupFolder {
         return $null
     }
 
-    Write-Log "Listing available backup folders..." "Action"
     Write-Host "`nAvailable Backup Folders:" -ForegroundColor Cyan
     for ($i = 0; $i -lt $backupFolders.Count; $i++) {
         Write-Host " [${cCyan}$( $i + 1 )${cReset}] $( $backupFolders[$i].Name ) ${cGreen}($( $backupFolders[$i].CreationTime ))${cReset}"
