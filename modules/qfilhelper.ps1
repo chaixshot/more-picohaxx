@@ -451,11 +451,11 @@ function ResetLookUp {
 
 function CreateBackupFolder([string]$backupMode) {
     if ($backupMode -eq "luns") {
-        $script:gsBackupDir = "$LUNsBackupPath\Backup-$TimeStamp\"
+        $script:gsBackupDir = "$LUNsBackupPath\$TimeStamp\"
     } elseif ($backupMode -eq "userdata") {
-        $script:gsBackupDir = "$UserBackupPath\Backup-$TimeStamp\"
+        $script:gsBackupDir = "$UserBackupPath\$TimeStamp\"
     } elseif ($backupMode -eq "partitions") {
-        $script:gsBackupDir = "$PartitionsBackupPath\Backup-$TimeStamp\"
+        $script:gsBackupDir = "$PartitionsBackupPath\$TimeStamp\"
     }
     New-Item -ItemType Directory -Path $gsBackupDir | Out-Null
 }

@@ -85,7 +85,7 @@ function Select-BackupFolder {
 
     foreach ($source in $backupSources) {
         if (Test-Path $source.Path) {
-            $folders = Get-ChildItem -Path $source.Path -Directory -Filter "Backup-*"
+            $folders = Get-ChildItem -Path $source.Path -Directory
             foreach ($f in $folders) {
                 $f | Add-Member -MemberType NoteProperty -Name "BackupType" -Value $source.Type
                 $allBackupFolders.Add($f)
@@ -495,7 +495,7 @@ function Backup-Device([string]$backupMode) {
     }
 
     # Post-process organization
-    $newBackup = Get-ChildItem -Path $backupFolder -Directory -Filter "Backup-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    $newBackup = Get-ChildItem -Path $backupFolder -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
     if (-not $newBackup) {
         Write-Log "Could not automatically find the backup folder in $backupFolder." "Warning"
