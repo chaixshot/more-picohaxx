@@ -38,9 +38,9 @@ function BackupLUNs {
 
     # Iterate through LUN 0 to 6
     Display-DontInterrupt $true
-    $total = 6
+    $totalParts = 6
 
-    for ($iCnt = 0; $iCnt -le $total; $iCnt++) {
+    for ($iCnt = 0; $iCnt -le $totalParts; $iCnt++) {
         Write-Progress -Activity "Backing up LUNs" -Status "Processing LUN $iCnt (Progress: $([math]::Round(($iCnt / 7) * 100) )%)" -PercentComplete (($iCnt / 7) * 100)
 
         $obPInfo = [PSCustomObject]@{
@@ -57,7 +57,7 @@ function BackupLUNs {
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
 
-        Write-Log "[$( $iCnt + 1 )/$total] Backing up LUN '${cCyan}$( $obPInfo.iLUN )${cReset}'..." "Action"
+        Write-Log "[$( $iCnt + 1 )/$totalParts] Backing up partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
         if (-not (ExecuteCommand $sCMDLine)) {
             break
         }
@@ -104,7 +104,7 @@ function BackupUserData {
 
     Display-DontInterrupt $true
     Write-Progress -Activity "Backing up UserData" -Status "Backing up partition 'userdata'..." -PercentComplete 50
-    Write-Log "Backing up partition '${cCyan}$( $obPInfo.sLabel )${cReset}'..." "Action"
+    Write-Log "Backing up partition '${cCyan}lun0_userdata.bin${cReset}'..." "Action"
     if (-not (ExecuteCommand $sCMDLine)) {
         Write-Progress -Activity "Backing up UserData" -Completed
         CleanUpBackupFolder
@@ -166,7 +166,7 @@ function BackupPartitions {
             }
 
             $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
-            Write-Log "Backing up partition '${cCyan}$( $obPInfo.sLabel )${cReset}' (LUN $( $obPInfo.iLUN ))..." "Action"
+            Write-Log "Backing up partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
             if (-not (ExecuteCommand $sCMDLine)) {
                 $script:geFailed = 1
@@ -256,7 +256,7 @@ function FlashFirmware([string]$flashPath) {
         }
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
-        Write-Log "[$( $i + 1 )/$totalParts] Flashing partition '${cCyan}$( $obPInfo.sLabel )${cReset}'..." "Action"
+        Write-Log "[$( $i + 1 )/$totalParts] Flashing partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
         if (-not (ExecuteCommand $sCMDLine)) {
             break
         }
@@ -322,10 +322,10 @@ function LoadFileList([string]$flashPath) {
 }
 
 function FlashLUNs($flashList, [string]$flashPath) {
-    $total = $flashList.LUNs.Count
-    for ($i = 0; $i -lt $total; $i++) {
+    $totalParts = $flashList.LUNs.Count
+    for ($i = 0; $i -lt $totalParts; $i++) {
         $lunFile = $flashList.LUNs[$i]
-        Write-Progress -Activity "Flashing LUNs" -Status "Flashing LUN $( $lunFile.iLUN )..." -PercentComplete (($i / $total) * 100)
+        Write-Progress -Activity "Flashing LUNs" -Status "Flashing LUN $( $lunFile.iLUN )..." -PercentComplete (($i / $totalParts) * 100)
 
         $obPInfo = [PSCustomObject]@{
             sLabel   = $lunFile.sLabel
@@ -336,7 +336,7 @@ function FlashLUNs($flashList, [string]$flashPath) {
         }
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
-        Write-Log "[$( $i + 1 )/$total] Flashing LUN '${cCyan}$( $obPInfo.iLUN )${cReset}'..." "Action"
+        Write-Log "[$( $i + 1 )/$totalParts] Flashing LUN '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
         if (-not (ExecuteCommand $sCMDLine)) {
             Write-Progress -Activity "Flashing LUNs" -Completed
             return $false
@@ -347,10 +347,10 @@ function FlashLUNs($flashList, [string]$flashPath) {
 }
 
 function FlashGPTs($flashList, [string]$flashPath) {
-    $total = $flashList.GPTs.Count
-    for ($i = 0; $i -lt $total; $i++) {
+    $totalParts = $flashList.GPTs.Count
+    for ($i = 0; $i -lt $totalParts; $i++) {
         $gptFile = $flashList.GPTs[$i]
-        Write-Progress -Activity "Flashing GPTs" -Status "Flashing GPT for LUN $( $gptFile.iLUN )..." -PercentComplete (($i / $total) * 100)
+        Write-Progress -Activity "Flashing GPTs" -Status "Flashing GPT for LUN $( $gptFile.iLUN )..." -PercentComplete (($i / $totalParts) * 100)
 
         $obPInfo = [PSCustomObject]@{
             sLabel   = $gptFile.sLabel
@@ -361,7 +361,7 @@ function FlashGPTs($flashList, [string]$flashPath) {
         }
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
-        Write-Log "[$( $i + 1 )/$total] Flashing GPT for LUN '${cCyan}$( $obPInfo.iLUN )${cReset}'..." "Action"
+        Write-Log "[$( $i + 1 )/$totalParts] Flashing GPT '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
         if (-not (ExecuteCommand $sCMDLine)) {
             Write-Progress -Activity "Flashing GPTs" -Completed
             return $false
@@ -379,7 +379,6 @@ function Short2Long($fileName, [string]$flashPath) {
             if ($part.sLabel -eq $baseName) {
                 $newName = "lun$( $i )_$( $baseName ).bin"
                 $oldPath = Join-Path $flashPath $fileName
-                $newPath = Join-Path $flashPath $newName
 
                 Write-Log "Renaming '${cCyan}$fileName${cReset}' to '${cCyan}$newName${cReset}'..." "Action"
                 try {
