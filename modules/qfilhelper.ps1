@@ -25,7 +25,7 @@ function BackupLUNs {
     }
 
     ResetLookUp
-    CreateBackupFolder
+    CreateBackupFolder "luns"
 
     # Read GPT Headers to get partition layouts for each LUN
     if (-not (ReadGPTHeaders -isTemp $true)) {
@@ -76,7 +76,7 @@ function BackupUserData {
     }
 
     ResetLookUp
-    CreateBackupFolder
+    CreateBackupFolder "userdata"
 
     # Read GPT Headers with sorting enabled to allow looking up partition names
     if (-not (ReadGPTHeaders -isTemp $false -isSort $true)) {
@@ -123,7 +123,7 @@ function BackupPartitions {
     }
 
     ResetLookUp
-    CreateBackupFolder
+    CreateBackupFolder "partitions"
 
     # Read GPT Headers to populate $galoLookUp
     if (-not (ReadGPTHeaders -isTemp $true)) {
@@ -255,7 +255,6 @@ function FlashFirmware([string]$flashPath) {
             continue
         }
 
-        $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $FlashPath
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
         Write-Log "[$( $i + 1 )/$totalParts] Flashing partition '${cCyan}$( $obPInfo.sLabel )${cReset}'..." "Action"
         if (-not (ExecuteCommand $sCMDLine)) {
@@ -450,8 +449,14 @@ function ResetLookUp {
     $script:galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
 }
 
-function CreateBackupFolder {
-    $script:gsBackupDir = "$UserBackupPath\Backup-$TimeStamp\"
+function CreateBackupFolder([string]$backupMode) {
+    if ($backupMode -eq "luns") {
+        $script:gsBackupDir = "$LUNsBackupPath\Backup-$TimeStamp\"
+    } elseif ($backupMode -eq "userdata") {
+        $script:gsBackupDir = "$UserBackupPath\Backup-$TimeStamp\"
+    } elseif ($backupMode -eq "partitions") {
+        $script:gsBackupDir = "$PartitionsBackupPath\Backup-$TimeStamp\"
+    }
     New-Item -ItemType Directory -Path $gsBackupDir | Out-Null
 }
 

@@ -39,7 +39,6 @@ $DevInfoPath = ".\tools\engineering\devinfo"
 
 $BackupPath = ".\backup"
 $AblBackupPath = "${BackupPath}\abl"
-$UserBackupPath = "${BackupPath}\userdata"
 
 $QDL = ".\tools\qdl.exe"
 $ADB = ".\tools\adb.exe"
@@ -394,7 +393,7 @@ function Perform-FastbootUnlock {
     if ($IsRetryBootloader -eq 0) {
         Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to unlock bootloader." "Warning"
         Write-Log "If bootloader is in ${cRed}Locked${cReset} state, this process will factory reset device data." "Warning"
-        Write-Log "Recommended to do a backup in the main menu." "Warning"
+        Write-Log "Recommended to backup ${cCyan}User Personal Data${cReset} from the ${cCyan}Backup/Resotre${cReset} menu." "Warning"
 
         Write-Host "`nTo proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
         $confirmation = Read-Host
@@ -463,7 +462,7 @@ function Perform-FastbootLock {
     if ($IsRetryBootloader -eq 0) {
         Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to lock bootloader." "Warning"
         Write-Log "If bootloader is in ${cGreen}Unlocked${cReset} state, this process will factory reset device data." "Warning"
-        Write-Log "Recommended to do a backup in the main menu." "Warning"
+        Write-Log "Recommended to backup ${cCyan}User Personal Data${cReset} from the ${cCyan}Backup/Resotre${cReset} menu." "Warning"
 
         Write-Host "`nTo proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
         $confirmation = Read-Host
