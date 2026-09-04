@@ -175,14 +175,13 @@ function Check-Prerequisites {
 
         $choice = Read-Host
         if ($choice -eq 'Y' -or $choice -eq 'y') {
-            $installScript = $DriverInstall
-            if (-not (Test-Path $installScript)) {
-                Write-Log "Driver installation script not found at '${cYellow}$installScript${cReset}'." "Error"
+            if (-not (Test-Path $DriverInstall)) {
+                Write-Log "Driver installation script not found at '${cYellow}$DriverInstall${cReset}'." "Error"
                 $isReady = $false
             } else {
                 # Start the install script elevated
                 Write-Log "Launching driver installer..." "Action"
-                Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$installScript`"" -NoNewWindow -Wait
+                Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$DriverInstall`"" -NoNewWindow -Wait
 
                 Write-Log "Driver installation process finished. Re-checking versions..." "Action"
                 $checkQcser = Get-InstalledDriverInfo "qcser.inf"
@@ -191,7 +190,7 @@ function Check-Prerequisites {
                 if ($null -eq $checkQcser -or $checkQcser.Version -ne $qcser_version -or $checkQcser.Provider -ne $qcser_provider -or $checkQcser.Date -ne $qcser_date -or
                     $null -eq $checkWinusb -or $checkWinusb.Version -ne $android_winusb_version -or $checkWinusb.Provider -ne $android_provider -or $checkWinusb.Date -ne $android_date) {
                     Write-Log "Driver mismatch still detected after installation." "Error"
-                    Write-Log "Please run '${cYellow}$installScript${cReset}' manually as ${cCyan}Administrator${cReset} and then re-run this script." "Error"
+                    Write-Log "Please run '${cYellow}$DriverInstall${cReset}' manually as ${cCyan}Administrator${cReset} and then re-run this script." "Error"
                     $isReady = $false
                 } else {
                     Write-Log "Drivers successfully installed/updated." "Success"
