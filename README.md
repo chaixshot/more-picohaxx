@@ -15,9 +15,20 @@ This repository contains a comprehensive set of tools and scripts to unlock the 
 
 This tool includes a built-in **Backup/Restore** suite to protect your user data from factory reset.
 
+### Backup Modes
+
+1.  **Physical Binary Dump (LUNs)**
+    *   Sector-by-sector clone of physical drives (LUN 0-6).
+    *   Best for unbricking, GPT repair, and low-level recovery.
+2.  **User Personal Data (UserData)**
+    *   Backup of the `userdata` partition ONLY.
+    *   Includes all apps, games, photos, and internal storage files.
+3.  **System Partition Dump (Partitions)**
+    *   Individual file per system partition (boot, abl, system, etc.).
+    *   Best for general firmware backup or modding. Excludes userdata.
+
 ### Features
 
-* **Userdata Backup**: Perform a complete backup of all device partitions (LUN0-LUN6) via EDL mode.
 * **Transparent LZX Compression**: Optional folder compression for backups using Windows native `compact.exe`. Reduces backup size by up to **60%** while keeping files directly accessible with negligible CPU impact.
 * **Easy Restoration**: Swap between different backup sets using the `Select-BackupFolder` feature.
 * **QPST Integration**: Automates the complex QSaharaServer/fh_loader workflow using the provided `QFILHelper`.
@@ -41,7 +52,7 @@ This tool includes a built-in **Backup/Restore** suite to protect your user data
 
 ## How It Works
 
-1. **Backup Userdata**: Perform a full backup of your user data using EDL mode before proceeding, as unlocking will wipe the device.
+1. **Perform Backup**: Choose a **User Personal Data** backup before proceeding, as unlocking will wipe the device.
 1. **Get Chip ID**: Acquire your `serial_number` (Chip ID) via `adb` (from `/sys/devices/soc0/serial_number`).
 1. **Generate Token**: Use `more-picohaxx.py` to generate your personal unlock command.
 1. **Flash Engineering ABL**: Flash the old `abl` and `devinfo` via EDL.
