@@ -185,8 +185,8 @@ function BackupPartitions {
     ProcessCompleted -isExec $isExec
 }
 
-function FlashFirmware([string]$FlashPath = "") {
-    if ( [string]::IsNullOrEmpty($FlashPath)) {
+function FlashFirmware([string]$flashPath) {
+    if ( [string]::IsNullOrEmpty($flashPath)) {
         return
     }
 
@@ -202,9 +202,9 @@ function FlashFirmware([string]$FlashPath = "") {
         return
     }
 
-    $flashList = LoadFileList -FlashPath $FlashPath
+    $flashList = LoadFileList -FlashPath $flashPath
     if ($flashList.Count -eq 0) {
-        Write-Log "No firmware files found in '${cCyan}${FlashPath}${cCyan}'." "Error"
+        Write-Log "No firmware files found in '${cCyan}${flashPath}${cCyan}'." "Error"
         ProcessCompleted -isExec $false
         return
     }
@@ -213,7 +213,7 @@ function FlashFirmware([string]$FlashPath = "") {
     Display-DontInterrupt $false
 
     # Flash LUNs
-    if (-not (FlashLUNs -flashList $flashList -FlashPath $FlashPath)) {
+    if (-not (FlashLUNs -flashList $flashList -FlashPath $flashPath)) {
         ProcessCompleted -isExec $isExec
         return
     }
@@ -222,7 +222,7 @@ function FlashFirmware([string]$FlashPath = "") {
     }
 
     # Flash GPTs
-    if (-not (FlashGPTs -flashList $flashList -FlashPath $FlashPath)) {
+    if (-not (FlashGPTs -flashList $flashList -FlashPath $flashPath)) {
         ProcessCompleted -isExec $isExec
         return
     }
@@ -256,6 +256,7 @@ function FlashFirmware([string]$FlashPath = "") {
         }
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $FlashPath
+        $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
         Write-Log "[$( $i + 1 )/$totalParts] Flashing partition '${cCyan}$( $obPInfo.sLabel )${cReset}'..." "Action"
         if (-not (ExecuteCommand $sCMDLine)) {
             break
@@ -267,7 +268,7 @@ function FlashFirmware([string]$FlashPath = "") {
     ProcessCompleted -isExec $isExec
 }
 
-function LoadFileList([string]$FlashPath) {
+function LoadFileList([string]$flashPath) {
     $flashList = [PSCustomObject]@{
         LUNs       = @()
         GPTs       = @()
@@ -275,17 +276,17 @@ function LoadFileList([string]$FlashPath) {
         Count      = 0
     }
 
-    if (-not (Test-Path $FlashPath)) {
+    if (-not (Test-Path $flashPath)) {
         return $flashList
     }
 
-    $files = Get-ChildItem -Path $FlashPath -Filter "*.bin"
+    $files = Get-ChildItem -Path $flashPath -Filter "*.bin"
     foreach ($file in $files) {
         $name = $file.BaseName.ToLower()
 
         # Determine if it needs renaming (Short2Long)
         if (-not $name.StartsWith("lun")) {
-            $name = Short2Long -fileName $file.Name -FlashPath $FlashPath
+            $name = Short2Long -fileName $file.Name -FlashPath $flashPath
             if ($null -eq $name) {
                 continue
             }
@@ -321,7 +322,7 @@ function LoadFileList([string]$FlashPath) {
     return $flashList
 }
 
-function FlashLUNs($flashList, [string]$FlashPath) {
+function FlashLUNs($flashList, [string]$flashPath) {
     $total = $flashList.LUNs.Count
     for ($i = 0; $i -lt $total; $i++) {
         $lunFile = $flashList.LUNs[$i]
@@ -335,7 +336,7 @@ function FlashLUNs($flashList, [string]$FlashPath) {
             iSectors = 0
         }
 
-        $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $FlashPath
+        $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
         Write-Log "[$( $i + 1 )/$total] Flashing LUN '${cCyan}$( $obPInfo.iLUN )${cReset}'..." "Action"
         if (-not (ExecuteCommand $sCMDLine)) {
             Write-Progress -Activity "Flashing LUNs" -Completed
@@ -346,7 +347,7 @@ function FlashLUNs($flashList, [string]$FlashPath) {
     return $true
 }
 
-function FlashGPTs($flashList, [string]$FlashPath) {
+function FlashGPTs($flashList, [string]$flashPath) {
     $total = $flashList.GPTs.Count
     for ($i = 0; $i -lt $total; $i++) {
         $gptFile = $flashList.GPTs[$i]
@@ -360,7 +361,7 @@ function FlashGPTs($flashList, [string]$FlashPath) {
             iSectors = 0
         }
 
-        $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $FlashPath
+        $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
         Write-Log "[$( $i + 1 )/$total] Flashing GPT for LUN '${cCyan}$( $obPInfo.iLUN )${cReset}'..." "Action"
         if (-not (ExecuteCommand $sCMDLine)) {
             Write-Progress -Activity "Flashing GPTs" -Completed
@@ -371,15 +372,15 @@ function FlashGPTs($flashList, [string]$FlashPath) {
     return $true
 }
 
-function Short2Long($fileName, [string]$FlashPath) {
+function Short2Long($fileName, [string]$flashPath) {
     # Check all LUNs for a partition matching the filename
     $baseName = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
     for ($i = 0; $i -le 6; $i++) {
         foreach ($part in $galoLookUp[$i]) {
             if ($part.sLabel -eq $baseName) {
                 $newName = "lun$( $i )_$( $baseName ).bin"
-                $oldPath = Join-Path $FlashPath $fileName
-                $newPath = Join-Path $FlashPath $newName
+                $oldPath = Join-Path $flashPath $fileName
+                $newPath = Join-Path $flashPath $newName
 
                 Write-Log "Renaming '${cCyan}$fileName${cReset}' to '${cCyan}$newName${cReset}'..." "Action"
                 try {
@@ -568,8 +569,8 @@ function CalcBounds($obPInfo) {
     }
 }
 
-function BuildCommand($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string]$FlashPath = "") {
-    $sFileName = BuildFileName -obPInfo $obPInfo -isTemp $isTemp -isFlash $isFlash -FlashPath $FlashPath
+function BuildCommand($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string]$flashPath = "") {
+    $sFileName = BuildFileName -obPInfo $obPInfo -isTemp $isTemp -isFlash $isFlash -FlashPath $flashPath
 
     $cmd = " --port=\\.\COM$ComPort"
     if ($isFlash) {
@@ -665,9 +666,9 @@ function ProcessCompleted([bool]$isExec = $true) {
 }
 
 # --- Internal Helper ---
-function BuildFileName($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string]$FlashPath = "") {
+function BuildFileName($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string]$flashPath = "") {
     $sDir = if ($isFlash) {
-        $FlashPath
+        $flashPath
     } elseif ($isTemp) {
         "$qpstTMP\"
     } else {

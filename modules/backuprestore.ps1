@@ -209,9 +209,9 @@ function Verify-Backup([string]$FolderPath) {
     return $true
 }
 
-function Folder-Compression([string]$FolderPath) {
-    if (-not (Test-Path -Path $FolderPath)) {
-        Write-Log "Target path '${cYellow}$FolderPath${cReset}' does not exist." "Error"
+function Folder-Compression([string]$folderPath) {
+    if (-not (Test-Path -Path $folderPath)) {
+        Write-Log "Target path '${cYellow}$folderPath${cReset}' does not exist." "Error"
         return
     }
 
@@ -221,7 +221,7 @@ function Folder-Compression([string]$FolderPath) {
     Write-Log "This process takes at least ${cGreen}10 minutes${cReset}." "Warning"
     Write-Host ""
 
-    Write-Host "You are about to compress folder '${cCyan}${FolderPath}${cReset}'"
+    Write-Host "You are about to compress folder '${cCyan}${folderPath}${cReset}'"
     $confirmation = Read-Host "To proceed, type ${cYellow}'YES'${cReset} and press Enter"
 
     if ($confirmation -eq 'YES') {
@@ -229,7 +229,7 @@ function Folder-Compression([string]$FolderPath) {
         Write-Log "Scanning target directory..." "Action"
 
         Write-Progress -Activity "Scanning Files" -Status "Collecting file inventory..."
-        $fileList = Get-ChildItem -Path $FolderPath -Recurse -File -Force -ErrorAction SilentlyContinue
+        $fileList = Get-ChildItem -Path $folderPath -Recurse -File -Force -ErrorAction SilentlyContinue
         Write-Progress -Activity "Scanning Files" -Completed
 
         $totalFiles = $fileList.Count
@@ -245,7 +245,7 @@ function Folder-Compression([string]$FolderPath) {
         Write-Log "Compressing folder using ${cCyan}LZX${cReset}..." "Action"
 
         $processedCount = 0
-        & compact.exe /c /s /a /i /exe:lzx "$FolderPath\*" 2>&1 | ForEach-Object {
+        & compact.exe /c /s /a /i /exe:lzx "$folderPath\*" 2>&1 | ForEach-Object {
             $line = $_.ToString()
 
             # Match lines that indicate a file has been processed (contains compression ratio and [OK]/[ERR])
@@ -381,7 +381,7 @@ function Restore-Backup([string]$FlashPath = "") {
     }
 
     # Start the automated helper
-    FlashFirmware -FlashPath $FlashPath
+    FlashFirmware $flashPath
 
     Wait-Continue
 }
