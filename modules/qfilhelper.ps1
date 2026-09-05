@@ -35,7 +35,6 @@ function BackupLUNs {
     $isExec = $false
 
     # Iterate through LUN 0 to 5
-    Display-DontInterrupt $true
     $totalParts = 5
 
     for ($iCnt = 0; $iCnt -le $totalParts; $iCnt++) {
@@ -99,8 +98,6 @@ function BackupUserData {
 
     $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
 
-    Display-DontInterrupt $true
-
     Write-Log "Backing up partition '${cCyan}lun0_userdata.bin${cReset}'..." "Action"
 
     if (-not (ExecuteCommand $sCMDLine)) {
@@ -131,7 +128,6 @@ function BackupPartitions {
     $isExec = $false
 
     # Iterate through LUN 0 to 6
-    Display-DontInterrupt $true
     for ($iLUN = 0; $iLUN -le 5; $iLUN++) {
         foreach ($part in $galoLookUp[$iLUN]) {
             # Skip userdata partition as it's handled separately
@@ -193,7 +189,6 @@ function FlashFirmware([string]$flashPath) {
     }
 
     $isExec = $false
-    Display-DontInterrupt $false
 
     # Flash LUNs
     if (-not (FlashLUNs -flashList $flashList -FlashPath $flashPath)) {
@@ -380,16 +375,6 @@ function Short2Long($fileName, [string]$flashPath) {
 
 function Display-NotFound($obPInfo) {
     Write-Log "Partition '$( $obPInfo.sLabel )' not found on device (LUN $( $obPInfo.iLUN )). Skipping." "Warning"
-}
-
-function Display-DontInterrupt($isBackup) {
-    Write-Log "Do not disconnect the device and interrupt the process." "Warning"
-    if ($isBackup) {
-        Write-Log "In the ${cCyan}backup process${cReset}, getting interrupted might cause the backup data to collapse, but the device is fine." "Warning"
-    } else {
-        Write-Log "In the ${cCyan}restore process${cReset}, getting interrupted might brick the device." "Warning"
-    }
-    Write-Log "This can take a long time, do not panic if it looks stuck." "Info"
 }
 
 function LookUpNames($obPInfo) {
@@ -616,7 +601,7 @@ function ProcessCompleted([bool]$isExec = $true) {
 
     # Delete /tools/TMP folder
     if (Test-Path -Path $edlTMP) {
-        Write-Log "Deleting ${cCyan}$( $edlTMP )${cReset} folder..." "Action"
+        Write-Log "Deleting '${cCyan}$( $edlTMP )${cReset}' folder..." "Action"
         Remove-Item -Path $edlTMP -Recurse -Force -ErrorAction SilentlyContinue
     }
 
