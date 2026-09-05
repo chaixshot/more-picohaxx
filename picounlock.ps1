@@ -40,7 +40,7 @@ $DevInfoPath = ".\tools\engineering\devinfo"
 $BackupPath = ".\backup"
 $AblBackupPath = "${BackupPath}\abl"
 
-$QDL = ".\tools\qdl.exe"
+$EDLNG = ".\tools\edl-ng.exe"
 $ADB = ".\tools\adb.exe"
 $FASTBOOT = ".\tools\fastboot.exe"
 
@@ -72,8 +72,8 @@ function Check-Prerequisites {
         Write-Host ""
         $isReady = $false
     }
-    if (-not (Test-Path $QDL)) {
-        Write-Log "${cYellow}qdl.exe${cReset} not found. Please place it in the script directory." "Error"
+    if (-not (Test-Path $EDLNG)) {
+        Write-Log "${cYellow}edl-ng${cReset} not found. Please place it in the script directory." "Error"
         Write-Host ""
         $isReady = $false
     }
@@ -273,7 +273,42 @@ function Flash-EngineeringAbl {
     $backupDevInfo = Join-Path $currentBackupPath "devinfo.bin"
 
     Write-Log "Backing up original partitions and flashing engineering files in a single operation..." "Action"
-    & $QDL --storage ufs --include (Split-Path $FirehoseTargetPath -Parent) $FirehoseTargetPath read abl $backupAbl read devinfo $backupDevInfo write abl $AblPath write devinfo $DevInfoPath
+
+    # Backup ABL
+    & $EDLNG --loader $FirehoseTargetPath --memory UFS read-part abl $backupAbl
+    $exitcode = $LASTEXITCODE
+    if ($exitcode -ne 0 -or !(Test-Path $backupAbl) -or (Get-Item $backupAbl).Length -eq 0) { 
+        Write-Log "Backing up ABL failed with code ${cCyan}${exitcode}${cReset}." "Error"
+        return
+    }
+
+    # Backup DEVINFO
+    & $EDLNG --memory UFS read-part devinfo $backupDevInfo
+    $exitcode = $LASTEXITCODE
+    if ($exitcode -ne 0 -or !(Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
+        Write-Log "Backing up DEVINFO failed with code ${cCyan}${exitcode}${cReset}." "Error"
+        return
+    }
+
+    # Flash custom ABL
+    & $EDLNG --memory UFS write-part abl $AblPath
+    $exitcode = $LASTEXITCODE
+    if ($exitcode -ne 0) { 
+        Write-Log "Flashing engineering ABL failed with code ${cCyan}${exitcode}${cReset}." "Error"
+        return
+    }
+
+    # Flash custom DEVINFO
+    & $EDLNG --memory UFS write-part devinfo $DevInfoPath
+    $exitcode = $LASTEXITCODE
+    if ($exitcode -ne 0) { 
+        Write-Log "Flashing engineering DEVINFO failed with code ${cCyan}${exitcode}${cReset}." "Error"
+        return
+    }
+
+    # 5. Reset/Reboot device to apply changes
+    & $EDLNG --memory UFS reset
+
     if ($LASTEXITCODE -ne 0) {
         Write-Log "The combined backup and flash operation failed. Your device may be in an unusable state. Check if backups were created in '${cYellow}$currentBackupPath${cReset}' and attempt a manual restore if necessary." "Error"
         return
@@ -319,7 +354,24 @@ function Restore-OriginalAbl {
         return
     }
 
-    & $QDL --storage ufs --include (Split-Path $FirehoseTargetPath -Parent) $FirehoseTargetPath write abl $backupAbl write devinfo $backupDevInfo
+    # Flash backup ABL
+    & $EDLNG --loader $FirehoseTargetPath --memory UFS write-part abl $backupAbl
+    $exitcode = $LASTEXITCODE
+    if ($exitcode -ne 0) { 
+        Write-Log "Flashing backup ABL failed with code ${cCyan}${exitcode}${cReset}." "Error"
+        return
+    }
+
+    # Flash backup DEVINFO
+    & $EDLNG --memory UFS write-part devinfo $backupDevInfo
+    $exitcode = $LASTEXITCODE
+    if ($exitcode -ne 0) { 
+        Write-Log "Flashing backup DEVINFO failed with code ${cCyan}${exitcode}${cReset}." "Error"
+        return
+    }
+
+    & $EDLNG --memory UFS reset
+
     if ($LASTEXITCODE -eq 0) {
         Write-Log "Your device will automatically reboot to the system." "Info"
     } else {
