@@ -266,6 +266,11 @@ function LoadFileList([string]$flashPath) {
 
     $files = Get-ChildItem -Path $flashPath -Filter "*.bin"
     foreach ($file in $files) {
+        if ($file.Length -eq 0) {
+            Write-Log "Skipping empty file: '$($file.Name)'" "Warning"
+            continue
+        }
+        
         $name = $file.BaseName.ToLower()
 
         # Determine if it needs renaming (Short2Long)
