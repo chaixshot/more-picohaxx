@@ -232,19 +232,24 @@ function Get-PartitionsSizeGB {
     return 15 # Default system partitions size
 }
 
-function Verify-DiskSpace([string]$backupMode) {
-    if ($backupMode -eq "luns") {
-        $diskSize = Get-LunsSizeGB
-    } elseif ($backupMode -eq "userdata") {
-        $diskSize = Get-UserdataSizeGB
-    } elseif ($backupMode -eq "partitions") {
-        $diskSize = Get-PartitionsSizeGB
+function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$manualSizeGB) {
+    if ($manualSizeGB -gt 0) {
+        $diskSize = $manualSizeGB
+    } else {
+        if ($backupMode -eq "luns") {
+            $diskSize = Get-LunsSizeGB
+        } elseif ($backupMode -eq "userdata") {
+            $diskSize = Get-UserdataSizeGB
+        } elseif ($backupMode -eq "partitions") {
+            $diskSize = Get-PartitionsSizeGB
+        }
     }
 
-    $scriptDriveLetter = Split-Path -Path $PSScriptRoot -Qualifier
+    $targetDrivePath = if ($targetPath) { $targetPath } else { $PSScriptRoot }
+    $driveLetter = Split-Path -Path $targetDrivePath -Qualifier
 
     # Strip trailing colon if needed (e.g., "C:" -> "C")
-    $driveName = $scriptDriveLetter.TrimEnd(':')
+    $driveName = $driveLetter.TrimEnd(':')
     $targetDrive = Get-PSDrive $driveName -ErrorAction SilentlyContinue
 
     $freeSpaceGB = if ($targetDrive) {
@@ -253,16 +258,16 @@ function Verify-DiskSpace([string]$backupMode) {
         0
     }
 
-    Write-Log "Estimated backup size: ${cGreen}$diskSize GB${cReset}" "Info"
+    Write-Log "Required disk space: ${cGreen}$diskSize GB${cReset}" "Info"
     Write-Log "Current disk space (${cCyan}Drive ${driveName}${cReset}): ${cGreen}$freeSpaceGB GB${cReset}" "Info"
 
     if ($freeSpaceGB -lt $diskSize) {
-        Write-Log "Free space on drive ${cCyan}${scriptDriveLetter}${cReset} is less than the estimated backup size (${cCyan}$diskSize GB${cReset})!" "Error"
-        Write-Log "Please ensure you have enough space on drive ${cCyan}${scriptDriveLetter}${cReset} before proceeding." "Error"
+        Write-Log "Free space on drive ${cCyan}${driveLetter}${cReset} is less than the required size (${cCyan}$diskSize GB${cReset})!" "Error"
+        Write-Log "Please ensure you have enough space on drive ${cCyan}${driveLetter}${cReset} before proceeding." "Error"
         Wait-Continue
         return $false
     } else {
-        Write-Log "Please preserve disk space ${cCyan}${diskSize} GB${cReset} on drive ${cCyan}${scriptDriveLetter}${cReset} for this process." "Info"
+        Write-Log "Please preserve disk space ${cCyan}${diskSize} GB${cReset} on drive ${cCyan}${driveLetter}${cReset} for this process." "Info"
         Write-Host ""
 
         return $true
@@ -349,12 +354,21 @@ function Verify-Backup([string]$backupMode, [string]$folderPath, [switch]$silent
 }
 
 function Folder-Compression([string]$folderPath) {
+    Write-Header "Folder Compression"
+
     if (-not (Test-Path -Path $folderPath)) {
         Write-Log "Target path '${cYellow}$folderPath${cReset}' does not exist." "Error"
         return
     }
 
-    Write-Header "Folder Compression"
+    $fileList = Get-ChildItem -Path $folderPath -Recurse -File -Force -ErrorAction SilentlyContinue
+    $maxFileSizeBytes = ($fileList | Measure-Object -Property Length -Maximum).Maximum
+    $requiredSpaceGB = [math]::Max(1.0, [math]::Round($maxFileSizeBytes / 1GB, 2))
+
+    if (-not (Verify-DiskSpace -targetPath $folderPath -manualSizeGB $requiredSpaceGB)) {
+        return
+    }
+
     Write-Log "Using Windows native ${cCyan}LZX${cReset} algorithm to compress folder for maximum space savings up to ${cGreen}60%${cReset}." "Info"
     Write-Log "Files stay as files, ${cGreen}negligible CPU impact${cReset} during decompression." "Info"
     Write-Log "This process takes at least ${cGreen}10 minutes${cReset}." "Warning"
@@ -367,7 +381,6 @@ function Folder-Compression([string]$folderPath) {
         Write-Host ""
         Write-Log "Scanning target directory..." "Action"
 
-        $fileList = Get-ChildItem -Path $folderPath -Recurse -File -Force -ErrorAction SilentlyContinue
 
         $totalFiles = $fileList.Count
         if ($totalFiles -eq 0) {
