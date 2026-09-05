@@ -345,9 +345,7 @@ function Folder-Compression([string]$folderPath) {
         Write-Host ""
         Write-Log "Scanning target directory..." "Action"
 
-        Write-Progress -Activity "Scanning Files" -Status "Collecting file inventory..."
         $fileList = Get-ChildItem -Path $folderPath -Recurse -File -Force -ErrorAction SilentlyContinue
-        Write-Progress -Activity "Scanning Files" -Completed
 
         $totalFiles = $fileList.Count
         if ($totalFiles -eq 0) {
@@ -361,21 +359,15 @@ function Folder-Compression([string]$folderPath) {
         Write-Log "Original size: ${cCyan}${sizeBeforeGB} GB${cReset} across ${cCyan}${totalFiles}${cReset} files." "Info"
         Write-Log "Compressing folder using ${cCyan}LZX${cReset}..." "Action"
 
-        $processedCount = 0
-        & compact.exe /c /s /a /i /exe:lzx "$folderPath\*" 2>&1 | ForEach-Object {
-            $line = $_.ToString()
+        & compact.exe /c /s /a /i /f /exe:lzx "$folderPath\*" 2>&1 | ForEach-Object {
+            $line = $_.ToString().Trim()
 
-            # Match lines that indicate a file has been processed (contains compression ratio and [OK]/[ERR])
-            if ($line -match ':\s*\d+\s+\[(OK|ERR)\]') {
-                $processedCount++
-                $percent = [math]::Min([math]::Round(($processedCount / $totalFiles) * 100), 100)
-                Write-Progress -Activity "Compressing Files (LZX)" -Status "Processing: [$processedCount/$totalFiles] files" -PercentComplete $percent
-            }
+            # Skip blank lines
+            if ([string]::IsNullOrWhiteSpace($line)) { return }
+
+            # Log every line returned by compact.exe directly
+            Write-Log $line "Action"
         }
-        Write-Progress -Activity "Compressing Files (LZX)" -Completed
-
-        # Calculate post-compression space stats
-        Write-Progress -Activity "Calculating Space Savings" -Status "Measuring compressed footprint..."
 
         $sizeAfterBytes = [long]0
         foreach ($file in $fileList) {
@@ -389,8 +381,6 @@ function Folder-Compression([string]$folderPath) {
                 $sizeAfterBytes += $fileCompressedSize
             }
         }
-
-        Write-Progress -Activity "Calculating Space Savings" -Completed
 
         # Metrics calculation
         $sizeAfterGB = [math]::Round($sizeAfterBytes / 1GB, 2)

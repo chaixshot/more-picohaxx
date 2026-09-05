@@ -39,8 +39,6 @@ function BackupLUNs {
     $totalParts = 5
 
     for ($iCnt = 0; $iCnt -le $totalParts; $iCnt++) {
-        Write-Progress -Activity "Backing up LUNs" -Status "Processing LUN $iCnt (Progress: $([math]::Round(($iCnt / 6) * 100) )%)" -PercentComplete (($iCnt / 6) * 100)
-
         $obPInfo = [PSCustomObject]@{
             iLUN     = $iCnt
             iStart   = 0
@@ -56,7 +54,7 @@ function BackupLUNs {
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
 
         Write-Host ""
-        Write-Log "[$( $iCnt + 1 )/$totalParts] Backing up partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+        Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Backing up partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (ExecuteCommand $sCMDLine)) {
             break
@@ -65,7 +63,6 @@ function BackupLUNs {
         $isExec = $true
     }
 
-    Write-Progress -Activity "Backing up LUNs" -Completed
     CleanUpBackupFolder
     ProcessCompleted -isExec $isExec
 }
@@ -104,17 +101,14 @@ function BackupUserData {
 
     Display-DontInterrupt $true
 
-    Write-Progress -Activity "Backing up UserData" -Status "Backing up partition 'userdata'..." -PercentComplete 50
     Write-Log "Backing up partition '${cCyan}lun0_userdata.bin${cReset}'..." "Action"
 
     if (-not (ExecuteCommand $sCMDLine)) {
-        Write-Progress -Activity "Backing up UserData" -Completed
         CleanUpBackupFolder
         ProcessCompleted -isExec $false
         return
     }
 
-    Write-Progress -Activity "Backing up UserData" -Completed
     CleanUpBackupFolder
     ProcessCompleted -isExec $true
 }
@@ -136,17 +130,6 @@ function BackupPartitions {
 
     $isExec = $false
 
-    # Calculate total partitions to back up
-    $totalParts = 0
-    for ($i = 0; $i -le 5; $i++) {
-        foreach ($part in $galoLookUp[$i]) {
-            if ($part.sLabel -ne "userdata") {
-                $totalParts++
-            }
-        }
-    }
-    $currentPart = 0
-
     # Iterate through LUN 0 to 6
     Display-DontInterrupt $true
     for ($iLUN = 0; $iLUN -le 5; $iLUN++) {
@@ -155,9 +138,6 @@ function BackupPartitions {
             if ($part.sLabel -eq "userdata") {
                 continue
             }
-
-            $currentPart++
-            Write-Progress -Activity "Backing up Partitions" -Status "Processing partition '$( $part.sLabel )' (LUN $iLUN)..." -PercentComplete (($currentPart / $totalParts) * 100)
 
             $obPInfo = [PSCustomObject]@{
                 iLUN     = $part.iLUN
@@ -184,7 +164,6 @@ function BackupPartitions {
         }
     }
 
-    Write-Progress -Activity "Backing up Partitions" -Completed
     CleanUpBackupFolder
     ProcessCompleted -isExec $isExec
 }
@@ -244,7 +223,6 @@ function FlashFirmware([string]$flashPath) {
     $totalParts = $flashList.Partitions.Count
     for ($i = 0; $i -lt $totalParts; $i++) {
         $fileInfo = $flashList.Partitions[$i]
-        Write-Progress -Activity "Flashing Firmware" -Status "Flashing partition '$( $fileInfo.sLabel )'..." -PercentComplete (($i / $totalParts) * 100)
 
         $obPInfo = [PSCustomObject]@{
             sLabel   = $fileInfo.sLabel
@@ -262,7 +240,7 @@ function FlashFirmware([string]$flashPath) {
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
 
         Write-Host ""
-        Write-Log "[$( $i + 1 )/$totalParts] Flashing partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+        Write-Log "[$( $i + 1 )/$( $totalParts + 1 )] Flashing partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (ExecuteCommand $sCMDLine)) {
             break
@@ -270,7 +248,6 @@ function FlashFirmware([string]$flashPath) {
         $isExec = $true
     }
 
-    Write-Progress -Activity "Flashing Firmware" -Completed
     ProcessCompleted -isExec $isExec
 }
 
@@ -332,7 +309,6 @@ function FlashLUNs($flashList, [string]$flashPath) {
     $totalParts = $flashList.LUNs.Count
     for ($i = 0; $i -lt $totalParts; $i++) {
         $lunFile = $flashList.LUNs[$i]
-        Write-Progress -Activity "Flashing LUNs" -Status "Flashing LUN $( $lunFile.iLUN )..." -PercentComplete (($i / $totalParts) * 100)
 
         $obPInfo = [PSCustomObject]@{
             sLabel   = $lunFile.sLabel
@@ -345,14 +321,12 @@ function FlashLUNs($flashList, [string]$flashPath) {
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
 
         Write-Host ""
-        Write-Log "[$( $i + 1 )/$totalParts] Flashing LUN '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+        Write-Log "[$( $i + 1 )/$( $totalParts + 1 )] Flashing LUN '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (ExecuteCommand $sCMDLine)) {
-            Write-Progress -Activity "Flashing LUNs" -Completed
             return $false
         }
     }
-    Write-Progress -Activity "Flashing LUNs" -Completed
     return $true
 }
 
@@ -360,7 +334,6 @@ function FlashGPTs($flashList, [string]$flashPath) {
     $totalParts = $flashList.GPTs.Count
     for ($i = 0; $i -lt $totalParts; $i++) {
         $gptFile = $flashList.GPTs[$i]
-        Write-Progress -Activity "Flashing GPTs" -Status "Flashing GPT for LUN $( $gptFile.iLUN )..." -PercentComplete (($i / $totalParts) * 100)
 
         $obPInfo = [PSCustomObject]@{
             sLabel   = $gptFile.sLabel
@@ -373,14 +346,12 @@ function FlashGPTs($flashList, [string]$flashPath) {
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
 
         Write-Host ""
-        Write-Log "[$( $i + 1 )/$totalParts] Flashing GPT '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+        Write-Log "[$( $i + 1 )/$( $totalParts + 1 )] Flashing GPT '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (ExecuteCommand $sCMDLine)) {
-            Write-Progress -Activity "Flashing GPTs" -Completed
             return $false
         }
     }
-    Write-Progress -Activity "Flashing GPTs" -Completed
     return $true
 }
 
@@ -473,8 +444,9 @@ function CreateBackupFolder([string]$backupMode) {
 }
 
 function ReadGPTHeaders([bool]$isTemp = $false, [bool]$isSort = $false) {
-    for ($iCnt = 0; $iCnt -le 5; $iCnt++) {
-        Write-Progress -Activity "Reading GPT Headers" -Status "Reading LUN $iCnt..." -PercentComplete (($iCnt / 6) * 100)
+    $totalParts = 5
+
+    for ($iCnt = 0; $iCnt -le $totalParts; $iCnt++) {
 
         $obPInfo = [PSCustomObject]@{
             sLabel   = "gpt_header"
@@ -487,18 +459,15 @@ function ReadGPTHeaders([bool]$isTemp = $false, [bool]$isSort = $false) {
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $isTemp
 
         Write-Host ""
-        Write-Log "Reading gpt header '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+        Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Reading gpt header '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (ExecuteCommand $sCMDLine)) {
-            Write-Progress -Activity "Reading GPT Headers" -Completed
             return $false
         }
 
         LoadGPTData -obPInfo $obPInfo -isTemp $isTemp -isSort $isSort
     }
 
-    Write-Progress -Activity "Reading GPT Headers" -Completed
-    
     return $true
 }
 
@@ -642,6 +611,8 @@ function CleanUpBackupFolder() {
 
 function ProcessCompleted([bool]$isExec = $true) {
     Play-BeepBeep
+
+    Write-Host ""
 
     # Delete /tools/TMP folder
     if (Test-Path -Path $edlTMP) {
