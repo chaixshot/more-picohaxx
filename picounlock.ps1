@@ -18,7 +18,7 @@
 .NOTES
     Prerequisites:
     - adb.exe and fastboot.exe must be in your PATH or the script's directory.
-    - qdl.exe (from https://github.com/linux-msm/qdl) must be in the script's directory.
+    - edl-ng.exe (from https://github.com/strongtz/edl-ng) must be in the script's directory.
     - The 'more-picohaxx.py' script must be in the same directory.
     - Magisk4Pico.apk must be in the .\tools directory for rooting.
 #>
