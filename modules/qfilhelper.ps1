@@ -12,6 +12,7 @@ $workingDirectory = "tools"
 $edlTMP = "$workingDirectory\TMP"
 
 $galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
+$gaLunsOnline = @()
 $gsBackupDir = $null
 $geFailed = 0 # 0: NOERR, 1: FAILD, 2: ABORT
 
@@ -223,6 +224,11 @@ function FlashFirmware([string]$flashPath) {
     for ($iCnt = 0; $iCnt -lt $totalParts; $iCnt++) {
         $fileInfo = $flashList.Partitions[$iCnt]
 
+        if ($gaLunsOnline -notcontains $fileInfo.iLUN) {
+            Write-Log "Skipping partition flash: lun$($fileInfo.iLUN) is offline." "Warning"
+            continue
+        }
+
         $obPInfo = [PSCustomObject]@{
             sLabel   = $fileInfo.sLabel
             iLUN     = $fileInfo.iLUN
@@ -341,6 +347,11 @@ function FlashGPTs($flashList, [string]$flashPath) {
     for ($iCnt = 0; $iCnt -lt $totalParts; $iCnt++) {
         $gptFile = $flashList.GPTs[$iCnt]
 
+        if ($gaLunsOnline -notcontains $gptFile.iLUN) {
+            Write-Log "Skipping GPT flash: lun$($gptFile.iLUN) is offline." "Warning"
+            continue
+        }
+
         $obPInfo = [PSCustomObject]@{
             sLabel   = $gptFile.sLabel
             iLUN     = $gptFile.iLUN
@@ -426,6 +437,7 @@ function ValidateCQF {
 
 function ResetLookUp {
     $script:galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
+    $script:gaLunsOnline = @()
 }
 
 function CreateBackupFolder([string]$backupMode) {
@@ -458,9 +470,16 @@ function ReadGPTHeaders([bool]$isTemp = $false, [bool]$isSort = $false) {
         Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Reading gpt header '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (ExecuteCommand $sCMDLine)) {
-            return $false
+            if ($iCnt -eq 0) {
+                return $false # LUN 0 is mandatory
+            }
+            
+            Write-Log "Skipping lun${iCnt}: LUN not detected on device." "Warning"
+            $script:geFailed = 0
+            continue
         }
 
+        $script:gaLunsOnline += $iCnt
         LoadGPTData -obPInfo $obPInfo -isTemp $isTemp -isSort $isSort
     }
 
