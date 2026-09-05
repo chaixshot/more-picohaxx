@@ -98,7 +98,8 @@ function BackupUserData {
 
     $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
 
-    Write-Log "Backing up partition '${cCyan}lun0_userdata.bin${cReset}'..." "Action"
+    Write-Host ""
+    Write-Log "[1/1] Backing up partition '${cCyan}lun0_userdata.bin${cReset}'..." "Action"
 
     if (-not (ExecuteCommand $sCMDLine)) {
         CleanUpBackupFolder
@@ -126,6 +127,8 @@ function BackupPartitions {
     }
 
     $isExec = $false
+    $totalParts = 97
+    $iCnt = 0
 
     # Iterate through LUN 0 to 6
     for ($iLUN = 0; $iLUN -le 5; $iLUN++) {
@@ -144,9 +147,10 @@ function BackupPartitions {
             }
 
             $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
-
+            $iCnt++
+            
             Write-Host ""
-            Write-Log "Backing up partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+            Write-Log "[$iCnt/$totalParts] Backing up partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
             if (-not (ExecuteCommand $sCMDLine)) {
                 $script:geFailed = 1
@@ -216,8 +220,8 @@ function FlashFirmware([string]$flashPath) {
 
     # Flash Partitions
     $totalParts = $flashList.Partitions.Count
-    for ($i = 0; $i -lt $totalParts; $i++) {
-        $fileInfo = $flashList.Partitions[$i]
+    for ($iCnt = 0; $iCnt -lt $totalParts; $iCnt++) {
+        $fileInfo = $flashList.Partitions[$iCnt]
 
         $obPInfo = [PSCustomObject]@{
             sLabel   = $fileInfo.sLabel
@@ -235,7 +239,7 @@ function FlashFirmware([string]$flashPath) {
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
 
         Write-Host ""
-        Write-Log "[$( $i + 1 )/$( $totalParts + 1 )] Flashing partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+        Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (ExecuteCommand $sCMDLine)) {
             break
@@ -304,8 +308,8 @@ function LoadFileList([string]$flashPath) {
 
 function FlashLUNs($flashList, [string]$flashPath) {
     $totalParts = $flashList.LUNs.Count
-    for ($i = 0; $i -lt $totalParts; $i++) {
-        $lunFile = $flashList.LUNs[$i]
+    for ($iCnt = 0; $iCnt -lt $totalParts; $iCnt++) {
+        $lunFile = $flashList.LUNs[$iCnt]
 
         $obPInfo = [PSCustomObject]@{
             sLabel   = $lunFile.sLabel
@@ -318,7 +322,7 @@ function FlashLUNs($flashList, [string]$flashPath) {
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
 
         Write-Host ""
-        Write-Log "[$( $i + 1 )/$( $totalParts + 1 )] Flashing LUN '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+        Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing LUN '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (ExecuteCommand $sCMDLine)) {
             return $false
@@ -329,8 +333,8 @@ function FlashLUNs($flashList, [string]$flashPath) {
 
 function FlashGPTs($flashList, [string]$flashPath) {
     $totalParts = $flashList.GPTs.Count
-    for ($i = 0; $i -lt $totalParts; $i++) {
-        $gptFile = $flashList.GPTs[$i]
+    for ($iCnt = 0; $iCnt -lt $totalParts; $iCnt++) {
+        $gptFile = $flashList.GPTs[$iCnt]
 
         $obPInfo = [PSCustomObject]@{
             sLabel   = $gptFile.sLabel
@@ -343,7 +347,7 @@ function FlashGPTs($flashList, [string]$flashPath) {
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
 
         Write-Host ""
-        Write-Log "[$( $i + 1 )/$( $totalParts + 1 )] Flashing GPT '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+        Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing GPT '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (ExecuteCommand $sCMDLine)) {
             return $false
@@ -355,10 +359,10 @@ function FlashGPTs($flashList, [string]$flashPath) {
 function Short2Long($fileName, [string]$flashPath) {
     # Check all LUNs for a partition matching the filename
     $baseName = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
-    for ($i = 0; $i -le 5; $i++) {
-        foreach ($part in $galoLookUp[$i]) {
+    for ($iCnt = 0; $iCnt -le 5; $iCnt++) {
+        foreach ($part in $galoLookUp[$iCnt]) {
             if ($part.sLabel -eq $baseName) {
-                $newName = "lun$( $i )_$( $baseName ).bin"
+                $newName = "lun$( $iCnt )_$( $baseName ).bin"
                 $oldPath = Join-Path $flashPath $fileName
 
                 Write-Log "Renaming '${cCyan}$fileName${cReset}' to '${cCyan}$newName${cReset}'..." "Action"
@@ -389,8 +393,8 @@ function LookUpNames($obPInfo) {
         $iUBound = $obPInfo.iLUN
     }
 
-    for ($i = $iLBound; $i -le $iUBound; $i++) {
-        foreach ($part in $galoLookUp[$i]) {
+    for ($iCnt = $iLBound; $iCnt -le $iUBound; $iCnt++) {
+        foreach ($part in $galoLookUp[$iCnt]) {
             if ($part.sLabel -eq $targetLabel) {
                 # Update the object with found values
                 $obPInfo.iLUN = $part.iLUN
