@@ -89,7 +89,9 @@ function Test-CommandExists([string]$Command) {
 
 function IsEdlMode {
     # Returns $true if a Qualcomm 9008 device is present.
-    $edlDevice = Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -like "*USB\VID_05C6&PID_9008*" }
+    # Checks for both the standard Qualcomm VID/PID and the HS-USB / QDLoader strings
+    $edlDevice = Get-CimInstance -ClassName Win32_PnPEntity |
+                 Where-Object { $_.Name -match "Qualcomm.*9008" -or $_.DeviceID -like "*VID_05C6&PID_9008*" }
     return [bool]$edlDevice
 }
 

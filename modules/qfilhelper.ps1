@@ -2,16 +2,14 @@
 
 <#
 .SYNOPSIS
-    Ported QFIL Helper logic from VB.NET (clsLUNs.vb) to PowerShell.
+    EDL Helper logic for backing up and flashing devices.
 .DESCRIPTION
-    Provides functions for backing up LUNs and individual partitions using fh_loader.exe.
+    Provides functions for backing up LUNs and individual partitions using edl-ng.
 #>
 
 # --- Local Variables ---
-$workingDirectory = "tools\qpst"
-$qpstTMP = "$workingDirectory\TMP"
-$portTrace = "$LogsPath\${TimeStamp}_port_trace.txt"
-$fhLoader = "$workingDirectory\fh_loader.exe"
+$workingDirectory = "tools"
+$edlTMP = "$workingDirectory\TMP"
 
 $galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
 $gsBackupDir = $null
@@ -36,12 +34,12 @@ function BackupLUNs {
 
     $isExec = $false
 
-    # Iterate through LUN 0 to 6
+    # Iterate through LUN 0 to 5
     Display-DontInterrupt $true
-    $totalParts = 6
+    $totalParts = 5
 
     for ($iCnt = 0; $iCnt -le $totalParts; $iCnt++) {
-        Write-Progress -Activity "Backing up LUNs" -Status "Processing LUN $iCnt (Progress: $([math]::Round(($iCnt / 7) * 100) )%)" -PercentComplete (($iCnt / 7) * 100)
+        Write-Progress -Activity "Backing up LUNs" -Status "Processing LUN $iCnt (Progress: $([math]::Round(($iCnt / 6) * 100) )%)" -PercentComplete (($iCnt / 6) * 100)
 
         $obPInfo = [PSCustomObject]@{
             iLUN     = $iCnt
@@ -57,7 +55,9 @@ function BackupLUNs {
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
 
+        Write-Host ""
         Write-Log "[$( $iCnt + 1 )/$totalParts] Backing up partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+
         if (-not (ExecuteCommand $sCMDLine)) {
             break
         }
@@ -103,8 +103,10 @@ function BackupUserData {
     $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
 
     Display-DontInterrupt $true
+
     Write-Progress -Activity "Backing up UserData" -Status "Backing up partition 'userdata'..." -PercentComplete 50
     Write-Log "Backing up partition '${cCyan}lun0_userdata.bin${cReset}'..." "Action"
+
     if (-not (ExecuteCommand $sCMDLine)) {
         Write-Progress -Activity "Backing up UserData" -Completed
         CleanUpBackupFolder
@@ -136,7 +138,7 @@ function BackupPartitions {
 
     # Calculate total partitions to back up
     $totalParts = 0
-    for ($i = 0; $i -le 6; $i++) {
+    for ($i = 0; $i -le 5; $i++) {
         foreach ($part in $galoLookUp[$i]) {
             if ($part.sLabel -ne "userdata") {
                 $totalParts++
@@ -147,7 +149,7 @@ function BackupPartitions {
 
     # Iterate through LUN 0 to 6
     Display-DontInterrupt $true
-    for ($iLUN = 0; $iLUN -le 6; $iLUN++) {
+    for ($iLUN = 0; $iLUN -le 5; $iLUN++) {
         foreach ($part in $galoLookUp[$iLUN]) {
             # Skip userdata partition as it's handled separately
             if ($part.sLabel -eq "userdata") {
@@ -166,6 +168,8 @@ function BackupPartitions {
             }
 
             $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
+
+            Write-Host ""
             Write-Log "Backing up partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
             if (-not (ExecuteCommand $sCMDLine)) {
@@ -256,7 +260,10 @@ function FlashFirmware([string]$flashPath) {
         }
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
+
+        Write-Host ""
         Write-Log "[$( $i + 1 )/$totalParts] Flashing partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+
         if (-not (ExecuteCommand $sCMDLine)) {
             break
         }
@@ -336,7 +343,10 @@ function FlashLUNs($flashList, [string]$flashPath) {
         }
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
+
+        Write-Host ""
         Write-Log "[$( $i + 1 )/$totalParts] Flashing LUN '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+
         if (-not (ExecuteCommand $sCMDLine)) {
             Write-Progress -Activity "Flashing LUNs" -Completed
             return $false
@@ -361,7 +371,10 @@ function FlashGPTs($flashList, [string]$flashPath) {
         }
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
+
+        Write-Host ""
         Write-Log "[$( $i + 1 )/$totalParts] Flashing GPT '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+
         if (-not (ExecuteCommand $sCMDLine)) {
             Write-Progress -Activity "Flashing GPTs" -Completed
             return $false
@@ -374,7 +387,7 @@ function FlashGPTs($flashList, [string]$flashPath) {
 function Short2Long($fileName, [string]$flashPath) {
     # Check all LUNs for a partition matching the filename
     $baseName = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
-    for ($i = 0; $i -le 6; $i++) {
+    for ($i = 0; $i -le 5; $i++) {
         foreach ($part in $galoLookUp[$i]) {
             if ($part.sLabel -eq $baseName) {
                 $newName = "lun$( $i )_$( $baseName ).bin"
@@ -435,10 +448,10 @@ function LookUpNames($obPInfo) {
 
 function ValidateCQF {
     # Create/Clean TMP folder
-    if (-not (Test-Path $qpstTMP)) {
-        New-Item -ItemType Directory -Path $qpstTMP  | Out-Null
+    if (-not (Test-Path $edlTMP)) {
+        New-Item -ItemType Directory -Path $edlTMP  | Out-Null
     } else {
-        Remove-Item -Path "$qpstTMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path "$edlTMP\*" -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     return $true
@@ -460,8 +473,8 @@ function CreateBackupFolder([string]$backupMode) {
 }
 
 function ReadGPTHeaders([bool]$isTemp = $false, [bool]$isSort = $false) {
-    for ($iCnt = 0; $iCnt -le 6; $iCnt++) {
-        Write-Progress -Activity "Reading GPT Headers" -Status "Reading LUN $iCnt..." -PercentComplete (($iCnt / 7) * 100)
+    for ($iCnt = 0; $iCnt -le 5; $iCnt++) {
+        Write-Progress -Activity "Reading GPT Headers" -Status "Reading LUN $iCnt..." -PercentComplete (($iCnt / 6) * 100)
 
         $obPInfo = [PSCustomObject]@{
             sLabel   = "gpt_header"
@@ -472,6 +485,10 @@ function ReadGPTHeaders([bool]$isTemp = $false, [bool]$isSort = $false) {
         }
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $isTemp
+
+        Write-Host ""
+        Write-Log "Reading gpt header '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+
         if (-not (ExecuteCommand $sCMDLine)) {
             Write-Progress -Activity "Reading GPT Headers" -Completed
             return $false
@@ -479,7 +496,9 @@ function ReadGPTHeaders([bool]$isTemp = $false, [bool]$isSort = $false) {
 
         LoadGPTData -obPInfo $obPInfo -isTemp $isTemp -isSort $isSort
     }
+
     Write-Progress -Activity "Reading GPT Headers" -Completed
+    
     return $true
 }
 
@@ -576,55 +595,29 @@ function CalcBounds($obPInfo) {
 function BuildCommand($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string]$flashPath = "") {
     $sFileName = BuildFileName -obPInfo $obPInfo -isTemp $isTemp -isFlash $isFlash -FlashPath $flashPath
 
-    $cmd = " --port=\\.\COM$ComPort"
+    $cmd = ""
     if ($isFlash) {
-        $cmd += " --sendimage=$sFileName"
+        $cmd = "write-sector $($obPInfo.iStart) `"$sFileName`""
     } else {
-        $cmd += " --convertprogram2read --sendimage=$sFileName"
+        $cmd = "read-sector $($obPInfo.iStart) $($obPInfo.iSectors) `"$sFileName`""
     }
-    $cmd += " --start_sector=$( $obPInfo.iStart )"
-    $cmd += " --lun=$( $obPInfo.iLUN )"
-    if (-not $isFlash) {
-        $cmd += " --num_sectors=$( $obPInfo.iSectors )"
-    }
-    $cmd += " --noprompt --showpercentagecomplete --zlpawarehost=1 --memoryname=ufs --loglevel=0 --porttracename=${portTrace}"
+
+    $cmd += " --lun $($obPInfo.iLUN) --loader `"$FirehoseTargetPath`""
 
     return $cmd
 }
 
 function ExecuteCommand([string]$sCMDLine) {
-    $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-    $processInfo.FileName = $fhLoader
-    $processInfo.Arguments = $sCMDLine
-    $processInfo.RedirectStandardOutput = $true
-    $processInfo.RedirectStandardError = $true
-    $processInfo.UseShellExecute = $false
-    $processInfo.CreateNoWindow = $true
-
-    $process = New-Object System.Diagnostics.Process
-    $process.StartInfo = $processInfo
-
     try {
-        $process.Start() | Out-Null
-        $stdout = $process.StandardOutput.ReadToEnd()
-        $stderr = $process.StandardError.ReadToEnd()
-        $process.WaitForExit()
+        # Execute edl-ng directly to allow original console output and real-time feedback
+        $process = Start-Process -FilePath $EDLNG -ArgumentList $sCMDLine -Wait -NoNewWindow -PassThru
 
-        if ($process.ExitCode -notin @(0, 1) -or
-            $stdout -like "*Failed to open com port*" -or
-            $stdout -like "*ERROR: Could not write to*" -or
-            $stdout -like "*SAHARA mode!!*") {
-            Write-Log "fh_loader failed: ${cCyan}$($stdout.Trim() )${cReset}" "Error"
-            Write-Log "ExitCode: $($process.ExitCode)" "Error"
+        if ($process.ExitCode -ne 0) {
+            Write-Log "edl-ng failed with ExitCode: $($process.ExitCode)" "Error"
             $script:geFailed = 1
 
-            # Save error log
-            if (-not (Test-Path $LogsPath)) {
-                New-Item -ItemType Directory -Path $LogsPath | Out-Null
-            }
-            $errorLog = "$LogsPath\${TimeStamp}_qfilerror.log"
-            Set-Content -Path $errorLog -Value ($stderr + "`n" + $stdout)
-
+            # Note: Detailed logging to file is disabled when redirecting to console,
+            # but users see the error directly in the terminal.
             return $false
         }
     } catch {
@@ -650,10 +643,10 @@ function CleanUpBackupFolder() {
 function ProcessCompleted([bool]$isExec = $true) {
     Play-BeepBeep
 
-    # Delete /tools/qpst/TMP folder
-    if (Test-Path -Path $qpstTMP) {
-        Write-Log "Deleting ${cCyan}$( $qpstTMP )${cReset} folder..." "Action"
-        Remove-Item -Path $qpstTMP -Recurse -Force -ErrorAction SilentlyContinue
+    # Delete /tools/TMP folder
+    if (Test-Path -Path $edlTMP) {
+        Write-Log "Deleting ${cCyan}$( $edlTMP )${cReset} folder..." "Action"
+        Remove-Item -Path $edlTMP -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     if ($geFailed -eq 1) {
@@ -674,7 +667,7 @@ function BuildFileName($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string
     $sDir = if ($isFlash) {
         $flashPath
     } elseif ($isTemp) {
-        "$qpstTMP\"
+        "$edlTMP\"
     } else {
         $gsBackupDir
     }

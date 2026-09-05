@@ -2,7 +2,5 @@
 /backup
 /logs
 serial_number.txt
-/tools/qpst/Flash/*
-/tools/qpst/TMP
-/tools/qpst/Errors/*
+/tools/TMP
 port_trace.txt

@@ -4,14 +4,11 @@
 .SYNOPSIS
     Backup and Restore functions for the PicoUnlock project.
 .DESCRIPTION
-    Provides functionality for backing up device partitions using QPST/QFIL
-    and restoring them. Includes prerequisite checks for QPST installation.
+    Provides functionality for backing up device partitions using edl-ng
+    and restoring them.
 #>
 
 # --- Backup & Restore Functions ---
-
-$ComPort = $null
-$QSaharaServerPath = "tools\qpst\QSaharaServer.exe"
 
 $LUNsBackupPath = "${BackupPath}\luns"
 $UserBackupPath = "${BackupPath}\userdata"
@@ -22,48 +19,6 @@ if (-not ([System.Management.Automation.PSTypeName]'Native.Win32').Type) {
     Add-Type -MemberDefinition '[DllImport("kernel32.dll", EntryPoint="GetCompressedFileSizeW", CharSet=CharSet.Unicode)] public static extern uint GetCompressedFileSize(string lpFileName, out uint lpFileSizeHigh);' -Name 'Win32' -Namespace 'Native'
 }
 
-function Get-QualcommCOMPort {
-    Write-Log "Scanning for Qualcomm Emergency Download (EDL) device..." "Action"
-
-    # Query WMI for devices matching "Qualcomm" and "9008" or "QDLoader"
-    $device = Get-CimInstance -ClassName Win32_PnPEntity |
-    Where-Object { $_.Name -match "Qualcomm.*QDLoader.*9008|Qualcomm.*HS-USB.*9008" } |
-    Select-Object -First 1
-
-    if ($device -and $device.Name -match '\(COM(\d+)\)') {
-        # Extract the digit inside (COMx)
-        return [int]$Matches[1]
-    }
-    return $null
-}
-
-function Send-Firehose {
-    if ($null -eq $ComPort) {
-        Write-Log "Unable to detect Qualcomm COM Port." "Error"
-        Write-Log "Ensure the device is connected in EDL mode and using the '${cCyan}qcser.inf${cReset}' driver." "Error"
-        Wait-Continue
-
-        return $false
-    }
-
-    Write-Log "Sending firehose with QSaharaServer..." "Action"
-    Write-Log "If the process is stuck here, it means EDL timed out. Reboot EDL and try again." "Warning"
-
-    $saharaOutput = & $QSaharaServerPath -p "\\.\COM$ComPort" -s "13:$FirehoseTargetPath" 2>&1 | ForEach-Object { Write-Host $_; $_ }
-    $lastLine = $saharaOutput | Where-Object { $_ -match '\S' } | Select-Object -Last 1
-    Write-Host ""
-
-    if ($lastLine -match "Sahara protocol completed") {
-        Write-Log "Sahara protocol completed successfully." "Success"
-        return $true
-    } else {
-        Write-Log "Sahara protocol failed: $lastLine" "Error"
-        Write-Log "Reboot EDL and try again." "Info"
-        Wait-Continue
-
-        return $false
-    }
-}
 
 function Post-Steps {
     Write-Header "Post Steps"
@@ -153,9 +108,27 @@ function Get-LunsSizeGB {
             }
         } catch {
         }
+    } elseif (IsEdlMode) {
+        try {
+            # In EDL mode, use edl-ng to find total sectors across all LUNs
+            $gpt = & $EDLNG --loader $FirehoseTargetPath --memory UFS printgpt 2>&1
+            $totalSizeGB = 0
+            foreach ($line in $gpt) {
+                if ($line -match "Backup LBA:\s+(\d+)") {
+                    $lastLba = [long]$matches[1]
+                    # Total size of this LUN in GB (assuming 4096 sector size for UFS)
+                    $totalSizeGB += ($lastLba + 1) * 4096 / 1GB
+                }
+            }
+            if ($totalSizeGB -gt 0) {
+                $userdataSize = Get-UserdataSizeGB
+                return [math]::Round($totalSizeGB - $userdataSize, 2) + 1
+            }
+        } catch {
+        }
     }
 
-    Write-Log "Could not determine partition size via USB Debugging." "Warning"
+    Write-Log "Could not determine partition size." "Warning"
     return 15
 }
 
@@ -172,12 +145,35 @@ function Get-UserdataSizeGB {
             }
         } catch {
         }
+    } elseif (IsEdlMode) {
+        try {
+            # In EDL mode, use edl-ng to find userdata partition size
+            $gpt = & $EDLNG --loader $FirehoseTargetPath --memory UFS printgpt --lun 0 2>&1
+            $isUserdataBlock = $false
+            foreach ($line in $gpt) {
+                if ($line -match "Name:\s+userdata") {
+                    $isUserdataBlock = $true
+                    continue
+                }
+                # Look for the Size line following the userdata Name line
+                if ($isUserdataBlock -and $line -match "Size:\s+([\d.]+)\s+MiB") {
+                    $sizeMiB = [double]$matches[1]
+                    return [math]::Round($sizeMiB / 1024, 2) + 1
+                }
+                # If we hit a new partition or header, reset the flag
+                if ($line -match "Name:" -or $line -match "--- GPT Header") {
+                    $isUserdataBlock = $false
+                }
+            }
+        } catch {
+        }
     }
 
-    Write-Log "Could not determine userdata partition size via USB Debugging." "Warning"
+    Write-Log "Could not determine userdata partition size." "Warning"
     Write-Log "Userdata size depends on your device model (e.g., 128GB, 256GB, or 512GB)." "Warning"
-    return 110 
+    return 110
 }
+
 
 function Get-PartitionsSizeGB {
     if (IsAdbMode) {
@@ -211,9 +207,12 @@ function Get-PartitionsSizeGB {
                 return [math]::Round(($totalBlocks * 1KB) / 1GB, 2) + 1
             }
         } catch { }
+    } elseif (IsEdlMode) {
+        # Can use the same logic as LunsSize in EDL mode since it's an estimate of system partitions
+        return Get-LunsSizeGB
     }
     
-    Write-Log "Could not determine partition size via USB Debugging." "Warning"
+    Write-Log "Could not determine partition size." "Warning"
     return 15 # Default system partitions size
 }
 
@@ -263,7 +262,7 @@ function Wait-UserConfirm([string]$backupMode) {
         $waitMinutes = 10
     }
 
-    Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to access the userdata partition." "Warning"
+    Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to access the partition." "Warning"
     Write-Log "This process takes at least ${cGreen}${waitMinutes} minutes${cReset}. High speed ${cGreen}USB 3.0${cReset} is recommended." "Warning"
     Write-Log "Make sure the device is '${cCyan}Fully Charged${cReset}'." "Warning"
     Write-Host "To proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
@@ -290,7 +289,7 @@ function Verify-Backup([string]$backupMode, [string]$folderPath) {
     }
     
     if ($backupMode -eq "userdata") { 
-        $userDataFiles = @("lun0_gpt_header.bin", "lun0_userdata.bin", "lun1_gpt_header.bin", "lun2_gpt_header.bin", "lun3_gpt_header.bin", "lun4_gpt_header.bin", "lun5_gpt_header.bin", "lun6_gpt_header.bin")
+        $userDataFiles = @("lun0_gpt_header.bin", "lun0_userdata.bin", "lun1_gpt_header.bin", "lun2_gpt_header.bin", "lun3_gpt_header.bin", "lun4_gpt_header.bin", "lun5_gpt_header.bin")
         foreach ($file in $userDataFiles) {
             if (-not (Test-Path -Path (Join-Path $folderPath $file))) {
                 $verifySuccess = $false
@@ -476,39 +475,37 @@ function Backup-Device([string]$backupMode) {
         return
     }
 
-    # Start Sahara to load programmer
-    $script:ComPort = Get-QualcommCOMPort
-    if (-not (Send-Firehose)) {
-        return
-    }
-
     # Start the automated helper
     if ($backupMode -eq "luns") {
         BackupLUNs
-        $backupFolder = $LUNsBackupPath
+        $backupPath = Join-Path -Path $LUNsBackupPath -ChildPath $TimeStamp
     } elseif ($backupMode -eq "userdata") {
         BackupUserData
-        $backupFolder = $UserBackupPath
+        $backupPath = Join-Path -Path $UserBackupPath -ChildPath $TimeStamp
     } elseif ($backupMode -eq "partitions") {
         BackupPartitions
-        $backupFolder = $PartitionsBackupPath
+        $backupPath = Join-Path -Path $PartitionsBackupPath -ChildPath $TimeStamp
     }
 
-    # Post-process organization
-    $newBackup = Get-ChildItem -Path $backupFolder -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    # Resolve string path into a DirectoryInfo object if it exists
+    if (Test-Path -Path $backupPath) {
+        $backupFolder = Get-Item -Path $backupPath
+    } else {
+        $backupFolder = $null
+    }
 
-    if (-not $newBackup) {
-        Write-Log "Could not automatically find the backup folder in $backupFolder." "Warning"
-    } elseif (Verify-Backup $backupMode $newBackup.FullName) {
-        Write-Log "Detected new backup at: ${cCyan}$( $newBackup.FullName )${cReset}" "Success"
+    if (-not $backupFolder) {
+        Write-Log "Could not find the backup folder in '${cCyan}$backupPath${cReset}'." "Warning"
+    } elseif (Verify-Backup $backupMode $backupFolder.FullName) {
+        Write-Log "Detected new backup at: ${cCyan}$( $backupFolder.FullName )${cReset}" "Success"
         Wait-Continue
 
-        Folder-Compression $newBackup.FullName
+        Folder-Compression $backupFolder.FullName
     } else {
-        Write-Log "Found backup folder at '${cCyan}$( $newBackup.FullName )${cReset}', but validation failed." "Error"
-        if (Test-Path -Path $newBackup.FullName) {
+        Write-Log "Found backup folder at '${cCyan}$( $backupFolder.FullName )${cReset}', but validation failed." "Error"
+        if (Test-Path -Path $backupFolder.FullName) {
             Write-Log "Deleting invalid backup folder..." "Action"
-            Remove-Item -Path $newBackup.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $backupFolder.FullName -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
 
@@ -532,12 +529,6 @@ function Restore-Backup($backupInfo) {
     }
 
     if (-not (Wait-EdlMode 100)) {
-        return
-    }
-
-    # Start Sahara to load programmer
-    $script:ComPort = Get-QualcommCOMPort
-    if (-not (Send-Firehose)) {
         return
     }
 
