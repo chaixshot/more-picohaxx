@@ -19,14 +19,6 @@ if (-not ([System.Management.Automation.PSTypeName]'Native.Win32').Type) {
     Add-Type -MemberDefinition '[DllImport("kernel32.dll", EntryPoint="GetCompressedFileSizeW", CharSet=CharSet.Unicode)] public static extern uint GetCompressedFileSize(string lpFileName, out uint lpFileSizeHigh);' -Name 'Win32' -Namespace 'Native'
 }
 
-
-function Post-Steps {
-    Write-Header "Post Steps"
-    Write-Log "Your device will not automatically reboot." "Info"
-    Write-Log "Hold ${cYellow}Power Button${cReset} for 10 seconds to reboot to ${cCyan}SYSTEM${cReset}." "Info"
-    Write-Log "Hold ${cYellow}Vol Up + Vol Down + Power${cReset} for 10 seconds to reboot to ${cCyan}EDL${cReset}." "Info"
-}
-
 function Select-BackupFolder {
     Write-Header "Select Backup Folder"
 
@@ -173,7 +165,6 @@ function Get-UserdataSizeGB {
     Write-Log "Userdata size depends on your device model (e.g., 128GB, 256GB, or 512GB)." "Warning"
     return 110
 }
-
 
 function Get-PartitionsSizeGB {
     if (IsAdbMode) {
@@ -411,11 +402,11 @@ function Folder-Compression([string]$folderPath) {
             Write-Log "Total Saved: ${cCyan}${savedGB} GB${cReset} (${cYellow}${ratio}%${cReset})" "Info"
         }
         Write-Log "------------------------------------------------" "Info"
+
+        Play-BeepBeep
     } else {
         Write-Log "Folder compression ${cRed}cancelled${cReset} by user." "Warning"
     }
-
-    Play-BeepBeep
 }
 
 function Select-BackupMode {
@@ -453,11 +444,11 @@ function Backup-Device([string]$backupMode) {
     Write-Header "Backup Device"
 
     if (-not (Verify-DiskSpace $backupMode)) {
-        return
+        return $false
     }
 
     if (-not (Wait-UserConfirm $backupMode)) {
-        return
+        return $false
     }
 
     # Reboot EDL
@@ -468,10 +459,10 @@ function Backup-Device([string]$backupMode) {
     }
 
     if (-not (Wait-EdlMode 100)) {
-        return
+        return $false
     }
 
-    # Start the automated helper
+    # Start the automated helper - suppress any stray pipeline outputs using [void] or $null =
     if ($backupMode -eq "luns") {
         BackupLUNs
         $backupPath = Join-Path -Path $LUNsBackupPath -ChildPath $TimeStamp
@@ -483,29 +474,34 @@ function Backup-Device([string]$backupMode) {
         $backupPath = Join-Path -Path $PartitionsBackupPath -ChildPath $TimeStamp
     }
 
-    # Resolve string path into a DirectoryInfo object if it exists
-    if (Test-Path -Path $backupPath) {
-        $backupFolder = Get-Item -Path $backupPath
-    } else {
-        $backupFolder = $null
+    # Verify folder existence
+    if (-not (Test-Path -Path $backupPath)) {
+        Write-Log "Could not find the backup folder in '${cCyan}$backupPath${cReset}'." "Warning"
+        Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+        Wait-Continue
+        return $false
     }
 
-    if (-not $backupFolder) {
-        Write-Log "Could not find the backup folder in '${cCyan}$backupPath${cReset}'." "Warning"
-    } elseif (Verify-Backup $backupMode $backupFolder.FullName) {
+    $backupFolder = Get-Item -Path $backupPath
+
+    if (Verify-Backup $backupMode $backupFolder.FullName) {
         Write-Log "Detected new backup at: ${cCyan}$( $backupFolder.FullName )${cReset}" "Success"
         Wait-Continue
 
         Folder-Compression $backupFolder.FullName
+
+        Wait-Continue
+        return $true
     } else {
         Write-Log "Found backup folder at '${cCyan}$( $backupFolder.FullName )${cReset}', but validation failed." "Error"
         if (Test-Path -Path $backupFolder.FullName) {
             Write-Log "Deleting invalid backup folder..." "Action"
             Remove-Item -Path $backupFolder.FullName -Recurse -Force -ErrorAction SilentlyContinue
         }
-    }
 
-    Wait-Continue
+        Wait-Continue
+        return $false
+    }
 }
 
 function Restore-Backup($backupInfo) {
@@ -514,7 +510,7 @@ function Restore-Backup($backupInfo) {
     Write-Header "Restore Device"
 
     if (-not (Wait-UserConfirm $backupMode)) {
-        return
+        return $false
     }
 
     # Reboot EDL
@@ -525,13 +521,18 @@ function Restore-Backup($backupInfo) {
     }
 
     if (-not (Wait-EdlMode 100)) {
-        return
+        return $false
     }
 
     # Start the automated helper
     FlashFirmware $flashPath
 
+    if (-not $success) {
+        Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+    }
+
     Wait-Continue
+    return $true
 }
 
 function Show-BackupRestoreMenu {
@@ -552,16 +553,22 @@ function Show-BackupRestoreMenu {
                 $targetBackup = Select-BackupMode
                 if ($null -ne $targetBackup) {
                     Select-Firehose
-                    Backup-Device $targetBackup
-                    Post-Steps
+                    if ([bool](Backup-Device $targetBackup)) {
+                        Edl-To-System
+                    } else {
+                        Warning-EDL-ManualReboot
+                    }
                 }
             }
             "2" {
                 $backupInfo = Select-BackupFolder
                 if ($null -ne $backupInfo) {
                     Select-Firehose
-                    Restore-Backup $backupInfo
-                    Post-Steps
+                    if ([bool](Restore-Backup $backupInfo)) {
+                        Edl-To-System
+                    } else {
+                        Warning-EDL-ManualReboot
+                    }
                 }
             }
             "3" {

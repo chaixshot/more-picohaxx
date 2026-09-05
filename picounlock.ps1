@@ -306,20 +306,11 @@ function Flash-EngineeringAbl {
         return
     }
 
-    # 5. Reset/Reboot device to apply changes
-    & $EDLNG --memory UFS reset
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Log "The combined backup and flash operation failed. Your device may be in an unusable state. Check if backups were created in '${cYellow}$currentBackupPath${cReset}' and attempt a manual restore if necessary." "Error"
-        return
-    }
     Write-Log "Original partitions backed up to ${cGreen}'$currentBackupPath'${cReset}." "Success"
     Write-Log "Engineering ABL and Devinfo flashed successfully." "Success"
     Write-Host ""
     Write-Log "Engineering ABL might reboot device to EDL mode (Black screen) sometimes." "Warning"
     Write-Log "If it boots into EDL mode, hold ${cYellow}Power Button${cReset} until Pico logo shows up." "Warning"
-    Write-Host ""
-    Write-Log "Your device will automatically reboot to the system." "Info"
 }
 
 function Restore-OriginalAbl {
@@ -370,14 +361,7 @@ function Restore-OriginalAbl {
         return
     }
 
-    & $EDLNG --memory UFS reset
-
-    if ($LASTEXITCODE -eq 0) {
-        Write-Log "Your device will automatically reboot to the system." "Info"
-    } else {
-        Write-Log "Failed to restore backup partitions." "Error"
-    }
-    Write-Log "Original partitions restored successfully!" "Success"
+    Write-Log "Original ABL restored successfully!" "Success"
 }
 
 function Get-LatestAblBackup([string]$FileName = "abl.bin") {
@@ -753,6 +737,7 @@ try {
             "2" {
                 Select-Firehose
                 Flash-EngineeringAbl
+                Edl-To-System
             }
             "3" {
                 Perform-FastbootUnlock
@@ -763,6 +748,7 @@ try {
             "5" {
                 Select-Firehose
                 Restore-OriginalAbl
+                Edl-To-System
             }
             "l" {
                 Perform-FastbootLock

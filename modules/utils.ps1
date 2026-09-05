@@ -91,7 +91,7 @@ function IsEdlMode {
     # Returns $true if a Qualcomm 9008 device is present.
     # Checks for both the standard Qualcomm VID/PID and the HS-USB / QDLoader strings
     $edlDevice = Get-CimInstance -ClassName Win32_PnPEntity |
-                 Where-Object { $_.Name -match "Qualcomm.*9008" -or $_.DeviceID -like "*VID_05C6&PID_9008*" }
+    Where-Object { $_.Name -match "Qualcomm.*9008" -or $_.DeviceID -like "*VID_05C6&PID_9008*" }
     return [bool]$edlDevice
 }
 
@@ -338,10 +338,12 @@ function Execute-UnlockCommand {
 function Perform-Reboot {
     Write-Header "Reboot Selection"
     Write-Host " [${cCyan}1${cReset}] Boot to SYSTEM"
-    Write-Host " [${cCyan}2${cReset}] Boot to FASTBOOT"
-    Write-Host " [${cCyan}3${cReset}] Boot to recovery"
-    if (-not (IsFastbootMode)) {
-        Write-Host " [${cCyan}4${cReset}] Boot to EDL"
+    if (-not (IsEdlMode)) {
+        Write-Host " [${cCyan}2${cReset}] Boot to FASTBOOT"
+        Write-Host " [${cCyan}3${cReset}] Boot to recovery"
+        if (-not (IsFastbootMode)) {
+            Write-Host " [${cCyan}4${cReset}] Boot to EDL"
+        }
     }
     Write-Host ""
 
@@ -350,9 +352,7 @@ function Perform-Reboot {
     } elseif (IsAdbMode) {
         Write-Host "Device detected: ${cGreen}ADB${cReset}"
     } elseif (IsEdlMode) {
-        Write-Log "Device is detected in ${cCyan}EDL${cReset} mode." "Warning"
-        Write-Log "Manually reboot by hold ${cYellow}Power${cReset}." "Info"
-        return
+        Write-Host "Device detected: ${cGreen}EDL${cReset}"
     } else {
         Write-Log "No device detected." "Error"
         Write-Log "Please connect your device and ensure it is powered on." "Info"
@@ -381,6 +381,10 @@ function Perform-Reboot {
             ADB-To-Recovery
         } elseif ($choice -eq "4") {
             ADB-To-Edl
+        }
+    } elseif (IsEdlMode) {
+        if ($choice -eq "1") {
+            Edl-To-System
         }
     }
 }
@@ -451,6 +455,13 @@ function Warning-EDL {
     Write-Log "Manually boot to EDL by keep hold ${cYellow}Vol Up + Vol Down + Power${cReset}." "Info"
 }
 
+function Warning-EDL-ManualReboot {
+    Write-Header "Post Steps"
+    Write-Log "Your device will not automatically reboot." "Info"
+    Write-Log "Hold ${cYellow}Power Button${cReset} for 10 seconds to reboot to ${cCyan}SYSTEM${cReset}." "Info"
+    Write-Log "Hold ${cYellow}Vol Up + Vol Down + Power${cReset} for 10 seconds to reboot to ${cCyan}EDL${cReset}." "Info"
+}
+
 function ADB-To-System {
     Write-Host ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
@@ -491,4 +502,21 @@ function Fastboot-To-Recovery {
     Write-Host ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}RECOVERY${cReset} mode..." "Action"
     & $FASTBOOT reboot recovery
+}
+
+function Edl-To-System {
+    Select-Firehose
+
+    Write-Host ""
+    Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
+    
+    # Run silently using Out-Null
+    & $EDLNG --loader $FirehoseTargetPath --memory UFS reset 2>&1 | Out-Null
+
+    $exitcode = $LASTEXITCODE
+    if ($exitcode -ne 0) { 
+        Warning-EDL-ManualReboot
+    } else {
+        Write-Log "Reboot command sent successfully." "Success"
+    }
 }
