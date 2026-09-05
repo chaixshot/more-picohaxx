@@ -166,11 +166,11 @@ function BackupPartitions {
 
 function FlashFirmware([string]$flashPath) {
     if ( [string]::IsNullOrEmpty($flashPath)) {
-        return
+        return $false
     }
 
     if (-not (ValidateCQF)) {
-        return
+        return $false
     }
 
     ResetLookUp
@@ -178,14 +178,14 @@ function FlashFirmware([string]$flashPath) {
     # Read GPT Headers to get partition layouts for each LUN
     if (-not (ReadGPTHeaders -isTemp $true)) {
         ProcessCompleted -isExec $false
-        return
+        return $false
     }
 
     $flashList = LoadFileList -FlashPath $flashPath
     if ($flashList.Count -eq 0) {
         Write-Log "No firmware files found in '${cCyan}${flashPath}${cCyan}'." "Error"
         ProcessCompleted -isExec $false
-        return
+        return $false
     }
 
     $isExec = $false
@@ -193,7 +193,7 @@ function FlashFirmware([string]$flashPath) {
     # Flash LUNs
     if (-not (FlashLUNs -flashList $flashList -FlashPath $flashPath)) {
         ProcessCompleted -isExec $isExec
-        return
+        return $false
     }
     if ($flashList.LUNs.Count -gt 0) {
         $isExec = $true
@@ -202,7 +202,7 @@ function FlashFirmware([string]$flashPath) {
     # Flash GPTs
     if (-not (FlashGPTs -flashList $flashList -FlashPath $flashPath)) {
         ProcessCompleted -isExec $isExec
-        return
+        return $false
     }
     if ($flashList.GPTs.Count -gt 0) {
         $isExec = $true
@@ -211,7 +211,7 @@ function FlashFirmware([string]$flashPath) {
     # Re-read GPT headers before flashing partitions to ensure we use the new layout
     if (-not (ReadGPTHeaders -isTemp $true -isSort $true)) {
         ProcessCompleted -isExec $isExec
-        return
+        return $false
     }
 
     # Flash Partitions
@@ -243,7 +243,9 @@ function FlashFirmware([string]$flashPath) {
         $isExec = $true
     }
 
+    $success = ($geFailed -eq 0)
     ProcessCompleted -isExec $isExec
+    return $success
 }
 
 function LoadFileList([string]$flashPath) {

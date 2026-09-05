@@ -525,14 +525,14 @@ function Restore-Backup($backupInfo) {
     }
 
     # Start the automated helper
-    FlashFirmware $flashPath
+    $success = FlashFirmware $flashPath
 
     if (-not $success) {
         Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
     }
 
     Wait-Continue
-    return $true
+    return $success
 }
 
 function Show-BackupRestoreMenu {
