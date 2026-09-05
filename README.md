@@ -31,7 +31,7 @@ This tool includes a built-in **Backup/Restore** suite to protect your user data
 
 * **Transparent LZX Compression**: Optional folder compression for backups using Windows native `compact.exe`. Reduces backup size by up to **60%** while keeping files directly accessible with negligible CPU impact.
 * **Easy Restoration**: Swap between different backup sets using the `Select-BackupFolder` feature.
-* **QPST Integration**: Automates the complex QSaharaServer/fh_loader workflow using the provided `QFILHelper`.
+* **EDL Integration**: Automates the complex EDL workflow using the provided `EDLHelper` (powered by `edl-ng`).
 
 ## Status
 
@@ -118,14 +118,15 @@ Using the engineering ABL can cause issues like slow boot times or the device un
 * `modules/`: Contains modularized logic for `utils`, `root`, and `backuprestore`.
 * `more-picohaxx.py`: The core logic for deriving the unlock code from the device serial number.
 * `devinfo`: Engineering partition data required for the bypass.
-* `tools/`: Contains `adb`, `fastboot`, `qdl.exe`, and `qpst` tools.
+* `tools/`: Contains `adb`, `fastboot`, and `edl-ng` tools.
 * `Magisk4Pico.apk`: Included for rooting the device after unlocking.
 
 ## Credits
 
 * **[typlo](https://github.com/264312431)**: For finding this bypass method and the previous root exploit.
 * **[Fallen Angel](https://github.com/FallenAngel-PP)**: Fearless testing and validation, Magisk4Pico.
-* **[QFILHelper](https://github.com/Beliathal/QFILHelper)**: Guildline **fh_loader** flash management.
+* **[QFILHelper](https://github.com/Beliathal/QFILHelper)**: Guildline flashing manager.
+* **[edl-ng](https://github.com/strongtz/edl-ng)**: Modern Qualcomm Emergency Download CLI.
 
 ---
 *For more technical details on the bypass mechanism, refer to the comments in `more-picohaxx.py`.*
