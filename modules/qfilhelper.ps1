@@ -565,18 +565,42 @@ function BuildCommand($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string]
 
 function ExecuteCommand([string]$sCMDLine) {
     try {
-        # Execute edl-ng directly to allow original console output and real-time feedback
-        $process = Start-Process -FilePath $EDLNG -ArgumentList $sCMDLine -Wait -NoNewWindow -PassThru
+        $lastWasProgress = $false
+        # Execute edl-ng and capture its output stream.
+        # 2>&1 redirects stderr to stdout so we can process all output.
+        $expression = "& `"$EDLNG`" $sCMDLine 2>&1"
 
-        if ($process.ExitCode -ne 0) {
-            Write-Log "edl-ng failed with ExitCode: $($process.ExitCode)" "Error"
+        Invoke-Expression $expression | ForEach-Object {
+            $line = $_.ToString().TrimEnd()
+
+            # Identify progress lines (Reading/Writing percentage updates)
+            if ($line -match "^(Reading|Writing):\s+\d+\.\d+%") {
+                # Use [Console]::Write to output to the console without a newline.
+                # This stays on the same line and typically bypasses Start-Transcript logging.
+                [System.Console]::Write("`r$line".PadRight(100))
+                $lastWasProgress = $true
+            } else {
+                # If the previous output was progress, ensure we start the next message on a new line
+                if ($lastWasProgress) {
+                    Write-Host ""
+                    $lastWasProgress = $false
+                }
+                Write-Host $line
+            }
+        }
+
+        # Final cleanup if the last output was a progress line
+        if ($lastWasProgress) {
+            Write-Host ""
+        }
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "edl-ng failed with ExitCode: $LASTEXITCODE" "Error"
             $script:geFailed = 1
-
-            # Note: Detailed logging to file is disabled when redirecting to console,
-            # but users see the error directly in the terminal.
             return $false
         }
     } catch {
+        if ($lastWasProgress) { Write-Host "" }
         Write-Log "Exception during ExecuteCommand: ${cCyan}$( $_.Exception.Message )${cReset}" "Error"
         $script:geFailed = 1
         return $false
