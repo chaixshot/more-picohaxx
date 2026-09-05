@@ -774,7 +774,7 @@ try {
     Write-Log "An unexpected error occurred: $_" "Error"
 } finally {
     Write-Header "Exited"
-    Write-Log "Version: 1.0.7" "Info"
+    Write-Log "Version: 1.1.0" "Info"
     Write-Host ""
 
     try {
