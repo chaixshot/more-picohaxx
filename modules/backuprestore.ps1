@@ -42,38 +42,63 @@ function Select-BackupFolder {
 
     $backupFolders = $allBackupFolders | Sort-Object CreationTime -Descending
 
-    if ($backupFolders.Count -eq 0) {
-        Write-Log "No backup folders found in any backup directory." "Error"
-        return $null
+    if ($backupFolders.Count -gt 0) {
+        Write-Host "Available Backup Folders:" -ForegroundColor Cyan
+        for ($i = 0; $i -lt $backupFolders.Count; $i++) {
+            $folder = $backupFolders[$i]
+            Write-Host " [${cCyan}$( $i + 1 )${cReset}] $( $folder.Name ) ${cYellow}[$( $folder.BackupType )]${cReset} ${cGreen}($( $folder.CreationTime ))${cReset}"
+        }
+        $selection = Read-Host "`nSelect a backup folder [${cCyan}1-$( $backupFolders.Count )${cReset}] or paste folder path, [${cCyan}c${cReset}] to cancel"
+    } else {
+        Write-Log "No backup folders found in default directories." "Warning"
+        $selection = Read-Host "`nPaste your backup folder path here, or [${cCyan}c${cReset}] to cancel"
     }
-
-    Write-Host "Available Backup Folders:" -ForegroundColor Cyan
-    for ($i = 0; $i -lt $backupFolders.Count; $i++) {
-        $folder = $backupFolders[$i]
-        Write-Host " [${cCyan}$( $i + 1 )${cReset}] $( $folder.Name ) ${cYellow}[$( $folder.BackupType )]${cReset} ${cGreen}($( $folder.CreationTime ))${cReset}"
-    }
-
-    $selection = Read-Host "`nSelect a backup folder [${cCyan}1-$( $backupFolders.Count )${cReset}], [${cCyan}c${cReset}] to cancel"
 
     if ($selection -eq 'c') {
         Write-Log "Operation cancelled by user." "Info"
         return $null
     }
 
-    if (-not [int]::TryParse($selection, [ref]$null) -or [int]$selection -lt 1 -or [int]$selection -gt $backupFolders.Count) {
-        Write-Log "Invalid selection '$selection'. Aborting." "Error"
-        return $null
+    # Check if user pasted a path
+    if (Test-Path -Path $selection -PathType Container) {
+        $pastedPath = (Get-Item -Path $selection).FullName
+        $detectedType = $null
+
+        foreach ($type in @("luns", "userdata", "partitions")) {
+            if (Verify-Backup -backupMode $type -folderPath $pastedPath -silent) {
+                $detectedType = $type
+                break
+            }
+        }
+
+        if ($null -ne $detectedType) {
+            Write-Log "Detected valid ${cYellow}$detectedType${cReset} backup at: ${cCyan}$pastedPath${cReset}" "Success"
+            Wait-Continue
+            return [PSCustomObject]@{
+                Path = $pastedPath
+                Type = $detectedType
+            }
+        } else {
+            Write-Log "The provided folder does not contain a valid backup set." "Error"
+            Wait-Continue
+            return $null
+        }
     }
 
-    $targetBackup = $backupFolders[[int]$selection - 1]
+    # Proceed with numeric selection
+    if ([int]::TryParse($selection, [ref]$null) -and [int]$selection -ge 1 -and [int]$selection -le $backupFolders.Count) {
+        $targetBackup = $backupFolders[[int]$selection - 1]
+        Write-Log "Selected backup: ${cCyan}$($targetBackup.Name)${cReset} [${cYellow}$($targetBackup.BackupType)${cReset}] ${cGreen}($($targetBackup.CreationTime))${cReset}" "Success"
+        Wait-Continue
 
-    Write-Log "Selected backup: ${cCyan}$($targetBackup.Name)${cReset} [${cYellow}$($targetBackup.BackupType)${cReset}] ${cGreen}($($targetBackup.CreationTime))${cReset}" "Success"
-    Wait-Continue
-
-    return [PSCustomObject]@{
-        Path = $targetBackup.FullName
-        Type = $targetBackup.BackupType
+        return [PSCustomObject]@{
+            Path = $targetBackup.FullName
+            Type = $targetBackup.BackupType
+        }
     }
+
+    Write-Log "Invalid selection or path: '$selection'." "Error"
+    return $null
 }
 
 function Get-LunsSizeGB {
@@ -272,7 +297,7 @@ function Wait-UserConfirm([string]$backupMode) {
     return $true
 }
 
-function Verify-Backup([string]$backupMode, [string]$folderPath) {
+function Verify-Backup([string]$backupMode, [string]$folderPath, [switch]$silent) {
     $verifySuccess = $true
 
     if ($backupMode -eq "luns") { 
@@ -306,7 +331,7 @@ function Verify-Backup([string]$backupMode, [string]$folderPath) {
     }
 
     if (-not $verifySuccess) {
-        Write-Log "Backup verification failed: required backup sets are missing." "Error"
+        if (-not $silent) { Write-Log "Backup verification failed: required backup sets are missing." "Error" }
         return $false
     }
 
@@ -315,11 +340,11 @@ function Verify-Backup([string]$backupMode, [string]$folderPath) {
     $sizeFormatted = "{0:N2}" -f $sizeGB
 
     if ($sizeGB -le 10) {
-        Write-Log "Backup verification failed: total folder size (${cYellow}$sizeFormatted GB${cReset}) is not greater than 10GB." "Error"
+        if (-not $silent) { Write-Log "Backup verification failed: total folder size (${cYellow}$sizeFormatted GB${cReset}) is not greater than 10GB." "Error" }
         return $false
     }
 
-    Write-Log "Backup verification successful. Total size: ${cGreen}$sizeFormatted GB${cReset}" "Success"
+    if (-not $silent) { Write-Log "Backup verification successful. Total size: ${cGreen}$sizeFormatted GB${cReset}" "Success" }
     return $true
 }
 
